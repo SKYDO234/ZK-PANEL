@@ -1,0 +1,44 @@
+name: zk-panel
+services:
+  panel:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      ZK_MODE: docker
+      ZK_REMOTE_ONLY: "true"
+      PORT: "3000"
+      DATA_DIR: /app/data
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:3000}
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
+      IMAGE_ALLOWLIST: ${IMAGE_ALLOWLIST:-itzg/minecraft-server:java21,itzg/mc-proxy:java21,node:22-alpine,python:3.12-alpine,nginxinc/nginx-unprivileged:1.27-alpine,alpine:3.22,redis:7.4-alpine}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+      DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID:-}
+    volumes:
+      - panel-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    # No Docker socket is mounted into the public-facing panel.
+  bot:
+    build: .
+    restart: unless-stopped
+    command: ["node", "dist/bot/index.mjs"]
+    profiles: [discord]
+    environment:
+      ZK_MODE: docker
+      DATA_DIR: /app/data
+      SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
+      DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
+    volumes:
+      - panel-data:/app/data
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+volumes:
+  panel-data:
