@@ -1,0 +1,24 @@
+# Run on a DEDICATED Docker host. See docs/PRODUCTION.md before deployment.
+name: zk-node
+services:
+  agent:
+    build:
+      context: .
+      dockerfile: agent/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8080:8080"
+    environment:
+      NODE_TOKEN: ${NODE_TOKEN:?Generate a random agent token}
+      DATA_DIR: /agent-data
+      WORKSPACE_HOST_PATH: ${WORKSPACE_HOST_PATH:?Set the absolute host workspace path}
+      IMAGE_ALLOWLIST: ${IMAGE_ALLOWLIST:-itzg/minecraft-server:java21,itzg/mc-proxy:java21,node:22-alpine,python:3.12-alpine,nginxinc/nginx-unprivileged:1.27-alpine,alpine:3.22,redis:7.4-alpine}
+      SESSION_SECRET: ${SESSION_SECRET:?Generate an agent session secret}
+      ZK_MODE: docker
+      AGENT_PORT: "8080"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ${WORKSPACE_HOST_PATH}:${WORKSPACE_HOST_PATH}
+      - agent-data:/agent-data
+volumes:
+  agent-data:
