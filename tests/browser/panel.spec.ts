@@ -128,3 +128,13 @@ test("wallet, deployment, console, files, backup/restore and deletion work toget
   await page.waitForURL("**/servers");
   await expect(page.locator("main")).not.toContainText("UI test world");
 });
+
+
+test("signed-out real mode shows the login form instead of a boot error", async ({ page }) => {
+  await page.route("**/api/config", route => route.fulfill({ json: { mode: "docker", autoDemo: false, devBootstrap: false, registration: false } }));
+  await page.route("**/api/bootstrap", route => route.fulfill({ status: 401, json: { error: "Please sign in to continue." } }));
+  await page.goto("/");
+  await expect(page.getByRole("heading", { name: "Good to have you back." })).toBeVisible();
+  await expect(page.getByLabel("Username or email")).toBeVisible();
+  await expect(page.locator(".error-state")).toHaveCount(0);
+});

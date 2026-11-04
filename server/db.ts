@@ -288,9 +288,13 @@ export function addLog(
   message: string,
   level: ConsoleLine["level"] = "info",
 ) {
+  const seq = Math.max(
+    Date.now() * 1000,
+    Number((db.prepare("SELECT COALESCE(MAX(seq),0)+1 seq FROM logs WHERE server_id=?").get(serverId) as any).seq),
+  );
   db.prepare("INSERT INTO logs(server_id,seq,data) VALUES(?,?,?)").run(
     serverId,
-    Date.now() * 100 + Math.floor(Math.random() * 100),
+    seq,
     JSON.stringify({ id: uid(), time: now(), level, message }),
   );
   db.prepare(
