@@ -8,3 +8,6 @@ data
 .arena*
 test-results
 playwright-report
+
+.tools
+.env.codespace

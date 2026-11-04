@@ -1,0 +1,11 @@
+{
+  "name": "ZK PANEL development",
+  "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "postCreateCommand": "bash install.sh --no-start",
+  "postStartCommand": "bash install.sh --start-only",
+  "forwardPorts": [3000],
+  "portsAttributes": {
+    "3000": { "label": "ZK PANEL", "onAutoForward": "openPreview", "visibility": "private" }
+  },
+  "customizations": { "vscode": { "extensions": ["dbaeumer.vscode-eslint", "esbenp.prettier-vscode"] } }
+}

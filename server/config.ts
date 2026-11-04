@@ -26,6 +26,8 @@ if (mode === "docker" && (!secret || secret.length < 32))
   throw new Error("SESSION_SECRET must contain at least 32 characters.");
 export const config = {
   mode,
+  autoDemo: mode === "demo" && process.env.ZK_DEMO_AUTO_LOGIN !== "false",
+  devBootstrap: mode === "demo" && process.env.ZK_DEV_BOOTSTRAP === "true" && (process.env.CODESPACES === "true" || process.env.ZK_ALLOW_LOCAL_DEV_BOOTSTRAP === "true"),
   root,
   dataDir,
   secret: secret!,
@@ -37,7 +39,7 @@ export const config = {
   secureCookie:
     process.env.COOKIE_SECURE === "true" ||
     (process.env.PUBLIC_URL || "").startsWith("https:"),
-  registration: process.env.ALLOW_REGISTRATION === "true" || mode === "demo",
+  registration: process.env.ALLOW_REGISTRATION === "true" || (mode === "demo" && process.env.ZK_DEV_BOOTSTRAP !== "true"),
   workspaceHostPath: path.resolve(
     process.env.WORKSPACE_HOST_PATH || path.join(dataDir, "workspaces"),
   ),

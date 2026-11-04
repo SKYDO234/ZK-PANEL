@@ -9,4 +9,6 @@ playwright-report/
 test-results/
 .DS_Store
 .arena-*.png
-.arena-*.png
+
+.tools/
+.env.codespace

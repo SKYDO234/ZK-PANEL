@@ -6,6 +6,10 @@ ZK PANEL v0.1 is a working application foundation, not a security-certified comm
 
 Use dedicated Linux nodes for untrusted workloads. Never run customer containers on a workstation, a database server, or a machine containing unrelated secrets. Docker's default shared-kernel boundary is not equivalent to a VM boundary.
 
+## Development credentials are not production credentials
+
+`install.sh` can create `admin` / `admin123` only for an explicitly enabled demo/development workspace. Docker mode refuses this bootstrap. Never copy a Codespace database into production, never expose the default development password publicly, and use `npm run admin:create` with a unique password for a real deployment.
+
 ## 1. Prepare the panel
 
 1. Install Node.js 22.13+ or Docker Engine with Compose on a Linux host.

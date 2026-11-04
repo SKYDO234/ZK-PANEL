@@ -56,7 +56,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     let active = true;
     async function init() {
       try {
-        let config = { mode: "demo" };
+        let config = { mode: "demo", autoDemo: true };
         try {
           config = await api("/config");
         } catch {}
@@ -67,7 +67,7 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           if (
             e instanceof ApiError &&
             e.status === 401 &&
-            config.mode === "demo"
+            config.mode === "demo" && config.autoDemo
           ) {
             await api("/auth/demo", { body: {} });
             d = await api<Bootstrap>("/bootstrap");
