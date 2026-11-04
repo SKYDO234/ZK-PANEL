@@ -1,9 +1,12 @@
 {
-  "name": "ZK PANEL development",
+  "name": "ZK PANEL real runtime",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:22",
+  "features": { "ghcr.io/devcontainers/features/docker-in-docker:2": { "moby": "true", "azureDnsAutoDetection": "false" } },
+  "runArgs": ["--privileged"],
   "postCreateCommand": "bash install.sh --no-start",
   "postStartCommand": "bash install.sh --start-only",
   "forwardPorts": [3000],
+  "otherPortsAttributes": { "onAutoForward": "silent", "visibility": "private" },
   "portsAttributes": {
     "3000": { "label": "ZK PANEL", "onAutoForward": "openPreview", "visibility": "private" }
   },

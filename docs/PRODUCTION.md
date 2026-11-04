@@ -8,7 +8,7 @@ Use dedicated Linux nodes for untrusted workloads. Never run customer containers
 
 ## Development credentials are not production credentials
 
-`install.sh` can create `admin` / `admin123` only for an explicitly enabled demo/development workspace. Docker mode refuses this bootstrap. Never copy a Codespace database into production, never expose the default development password publicly, and use `npm run admin:create` with a unique password for a real deployment.
+`install.sh` can create `admin` / `admin123` for an explicitly enabled Codespaces workspace running the real local Docker runtime (`ZK_CODESPACES_BOOTSTRAP=true`, Docker mode, non-remote-only). This is a private-development convenience, not a production credential policy. The older demo-only bootstrap remains separate. Never copy a Codespace database into production, never expose the default password publicly, and use `npm run admin:create` with a unique password for a public/commercial deployment.
 
 ## 1. Prepare the panel
 

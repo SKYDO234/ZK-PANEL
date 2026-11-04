@@ -5,6 +5,9 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { once } from 'node:events';
+import { mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { DatabaseSync } from 'node:sqlite';
 const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'zk-codespace-'));
 const port = 39000 + Math.floor(Math.random() * 3000);
 const base = `http://127.0.0.1:${port}`;
@@ -109,4 +112,23 @@ test('repeated bootstrap is idempotent and production mode refuses the shortcut'
       .status,
     0,
   );
+});
+
+
+test("real Codespaces bootstrap refuses demo mode and creates an idempotent Docker-mode admin", () => {
+  const root = mkdtempSync(path.join(tmpdir(), "zk-real-bootstrap-"));
+  const env = { ...process.env, DATA_DIR: root, ZK_MODE: "docker", SESSION_SECRET: "real-bootstrap-secret-at-least-32-characters",
+    ZK_CODESPACES_BOOTSTRAP: "true", ZK_ALLOW_LOCAL_CODESPACES_BOOTSTRAP: "true", ZK_REMOTE_ONLY: "false" };
+  try {
+    const demo = spawnSync(process.execPath, ["--import", "tsx", "scripts/bootstrap-codespace.ts"], { cwd: process.cwd(), env: { ...env, ZK_MODE: "demo" }, encoding: "utf8" });
+    assert.notEqual(demo.status, 0);
+    const first = spawnSync(process.execPath, ["--import", "tsx", "scripts/bootstrap-codespace.ts"], { cwd: process.cwd(), env, encoding: "utf8" });
+    assert.equal(first.status, 0, first.stderr); assert.ok(first.stdout.includes("admin / admin123"));
+    const again = spawnSync(process.execPath, ["--import", "tsx", "scripts/bootstrap-codespace.ts"], { cwd: process.cwd(), env, encoding: "utf8" });
+    assert.equal(again.status, 0, again.stderr); assert.ok(again.stdout.includes("password was not changed"));
+    const db = new DatabaseSync(path.join(root, "zk.sqlite"));
+    assert.deepEqual(JSON.parse(JSON.stringify(db.prepare("SELECT username,role FROM users").all())), [{ username: "admin", role: "admin" }]);
+    assert.equal((db.prepare("SELECT COUNT(*) n FROM invoices").get() as any).n, 1);
+    db.close();
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });

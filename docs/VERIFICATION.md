@@ -1,15 +1,15 @@
 # Verification record
 
-Verified on **1 November 2026** in the development workspace, using Node.js 22 and Linux.
+Verified on **4 November 2026** in the development workspace, using Node.js 22 and Linux.
 
 ## Executed checks
 
 | Check                              | Result                                                                                          |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `npm run typecheck`                | Passed                                                                                          |
-| `npm test`                         | **34 passed, 0 failed**                                                                         |
+| `npm test`                         | **35 passed, 0 failed**                                                                         |
 | `npm run build`                    | Passed: frontend, panel, agent, Discord bot, command registration and both admin/import CLIs    |
-| `npm run test:ui`                  | **3 passed, 0 failed** in Chromium                                                              |
+| `npm run test:ui`                  | **4 passed, 0 failed** in Chromium                                                              |
 | `npm audit --audit-level=moderate` | **0 vulnerabilities** at verification time                                                      |
 | Built-in server smoke test         | `npm start` served the built frontend and `/healthz` on a separate port                         |
 | Bundled administrator CLI          | Successfully created an administrator in an isolated Docker-mode database using test-only input |
@@ -29,17 +29,18 @@ The browser tests use the supplied Chromium executable override in this sandbox.
 - Autopilot policy updates, schedules, API-key creation/revocation and administrator restrictions for API keys.
 - Stripe webhook signature rejection, signed settlement, event replay/duplicate-session protection, amount-mismatch rollback and expired checkout handling. **These are locally signed test events, not live Stripe transactions.**
 - Docker-mode demo-login/registration/credit gating and agent bearer-token/allocation validation. **These do not start Docker workloads.**
-- Browser rendering of principal panel pages, mobile navigation/viewport fit, and a complete demo wallet → deployment → console → file → backup/restore → deletion workflow.
+- Browser rendering of principal panel pages, mobile navigation/viewport fit, signed-out real-mode login rendering, and a complete demo wallet → deployment → console → file → backup/restore → deletion workflow.
 
 Additional manual browser checks covered plugin installation, API-key creation and the unconfigured Discord setup guide. No uncaught page exceptions were observed in the principal-page smoke test.
 
 ## Codespaces installer verification
 
 - `bash -n install.sh` passed.
-- `bash install.sh --no-start` completed locally, installed locked dependencies, built all bundles, generated an ignored environment file and created the guarded development administrator.
-- A repeated install preserved the existing administrator and did not reset its password.
-- Automated tests verify username/email login, wrong-password rejection, disabled automatic demo login, bootstrap idempotency and refusal in Docker mode / without the explicit development opt-in.
-- The actual GitHub Codespaces provisioning lifecycle and private-port forwarding were not exercised from this sandbox; the devcontainer configuration is provided for that environment.
+- The installer now requires a reachable Docker Engine, writes `ZK_MODE=docker`, uses a separate `data-real/` database/workspace, and refuses to start a demo fallback.
+- The devcontainer adds the Docker-in-Docker feature; existing Codespaces must be rebuilt to pick it up.
+- Automated tests verify username/email login, wrong-password rejection, disabled automatic demo login, demo bootstrap idempotency/refusal, and the separate real-mode Codespaces bootstrap (refuses demo mode, creates one admin, grants one internal wallet credit, and does not reset an existing password).
+- A browser regression test verifies that an unauthenticated real-mode workspace renders the sign-in form instead of the boot error screen.
+- The actual GitHub Codespaces provisioning lifecycle, Docker-in-Docker daemon, private-port forwarding and real workload execution were not exercised from this sandbox because Docker Engine is unavailable here; the configuration and runtime code are provided for that environment.
 
 ## Not verified / external requirements
 

@@ -8,27 +8,37 @@ ZK combines a charcoal-and-lime React interface with a TypeScript API, SQLite pe
 
 ## One-command GitHub Codespaces install
 
-Open this repository in a GitHub Codespace. The included `.devcontainer/devcontainer.json` runs the installer automatically and forwards port **3000** as a private port. You can also run it manually in the Codespace terminal:
+Open this repository in a GitHub Codespace. The included `.devcontainer/devcontainer.json` installs Docker-in-Docker, runs the installer automatically, and forwards port **3000** as a private port. If you already had an older Codespace, **rebuild the container** (Command Palette → “Codespaces: Rebuild Container”) so the Docker feature is installed. You can also run the installer manually in the Codespace terminal:
 
 ```bash
 bash install.sh
 ```
 
-The installer installs Node.js 22 locally when needed (with checksum verification), installs locked npm dependencies, builds the panel, creates a persistent local session secret, and starts the panel. It does not require sudo or delete existing data. Re-running it preserves the environment and does not reset an existing administrator password.
+The installer verifies that Docker Engine is reachable, installs Node.js 22 locally when needed (with checksum verification), installs locked npm dependencies, builds the panel, creates a persistent local session secret, bootstraps the administrator, and starts the panel in **real Docker mode**. It does not fall back to demo compute. Re-running it preserves the environment and does not reset an existing administrator password.
 
-**Development login:** `admin` / `admin123` (email alternative: `admin@zk.local`).
+**Administrator login:** `admin` / `admin123` (email alternative: `admin@zk.local`). The account receives an internal wallet grant so you can launch real deployments without configuring Stripe first.
 
-> This shortcut is explicitly development-only. Change the password in Settings before sharing access, keep the forwarded port **Private**, and never reuse this database/credentials for production. Docker/production mode refuses the bootstrap shortcut. The Codespace runs demo compute, not real game hosting.
+> Change this password in Settings before sharing access and keep the panel port **Private**. This bootstrap is an explicit Codespaces convenience, not a production credential policy. For a public/commercial deployment use `npm run admin:create` with a unique password and follow [Production guide](docs/PRODUCTION.md).
+
+What is real in this mode:
+
+- Minecraft deployments run the `itzg/minecraft-server` container image; the runtime downloads the real `server.jar` for the selected type/version and accepts the EULA only when you explicitly accept it.
+- The plugin installer searches Modrinth, verifies the published SHA-512 hash, writes a real `.jar` into the deployment workspace, and removes it on uninstall. Restart the server to load/unload plugins.
+- Console commands execute through RCON (`rcon-cli`) for Minecraft and through container stdin for other workloads; logs and resource metrics come from Docker.
+- Files, backups, restores, power actions, schedules and Autopilot operate on the real container/workspace.
+
+Codespaces limits: the Codespace can stop/sleep, has finite RAM/disk, and is not an always-on production hosting SLA. GitHub port forwarding is designed for web preview URLs; joining a Minecraft server from a game client may require a dedicated node or a TCP tunnel. The panel, JARs, plugins, console, files and backups are real inside the Codespace.
 
 Useful commands:
 
 ```bash
-bash install.sh --no-start     # install/build/bootstrap only
-bash install.sh --start-only   # start in background; log: data/codespace.log
-npm run admin:bootstrap-dev    # explicit development bootstrap (guarded)
+bash install.sh --no-start          # install/build/bootstrap only
+bash install.sh --start-only        # start in background; log: data/codespace.log
+npm run admin:bootstrap-codespace   # explicit real-mode Codespaces bootstrap (guarded)
+docker ps                           # inspect real workload containers
 ```
 
-Stop a background Codespace panel with `kill "$(cat data/codespace.pid)"`. The installer-generated `.env.codespace`, local Node toolchain and runtime data are ignored by Git.
+Stop a background Codespace panel with `kill "$(cat data/codespace.pid)"`. The installer-generated `.env.real`, local Node toolchain and `data-real/` runtime data are ignored by Git. Older demo data in `data/` is left untouched and is not used by the real runtime.
 
 ## Explore locally
 

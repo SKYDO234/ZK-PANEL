@@ -45,9 +45,14 @@ export function StoreProvider({ children }: { children: ReactNode }) {
     [dismiss],
   );
   const refresh = useCallback(async () => {
-    const d = await api<Bootstrap>("/bootstrap");
-    setData(d);
-    setError("");
+    try {
+      const d = await api<Bootstrap>("/bootstrap");
+      setData(d);
+      setError("");
+    } catch (e) {
+      if (e instanceof ApiError && e.status === 401) { setData(null); setError(""); return; }
+      throw e;
+    }
   }, []);
   const refreshUser = useCallback(async () => {
     await refresh();
@@ -78,10 +83,15 @@ export function StoreProvider({ children }: { children: ReactNode }) {
           setError("");
         }
       } catch (e) {
-        if (active)
-          setError(
-            e instanceof Error ? e.message : "Could not connect to ZK PANEL.",
-          );
+        if (active) {
+          // An unauthenticated workspace is a normal sign-in state, not a boot failure.
+          if (e instanceof ApiError && e.status === 401) {
+            setData(null);
+            setError("");
+          } else {
+            setError(e instanceof Error ? e.message : "Could not connect to ZK PANEL.");
+          }
+        }
       } finally {
         if (active) setLoading(false);
       }
