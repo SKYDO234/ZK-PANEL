@@ -42,6 +42,11 @@ CREATE TABLE IF NOT EXISTS api_keys(id TEXT PRIMARY KEY, user_id TEXT NOT NULL R
 CREATE TABLE IF NOT EXISTS link_codes(code TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE, expires INTEGER NOT NULL);
 CREATE INDEX IF NOT EXISTS idx_servers_owner ON servers(owner_id); CREATE INDEX IF NOT EXISTS idx_activity_user ON activity(user_id); CREATE INDEX IF NOT EXISTS idx_invoices_user ON invoices(user_id);
 `);
+// Nullable usernames preserve compatibility with existing email-only accounts.
+if (!(db.prepare("PRAGMA table_info(users)").all() as any[]).some((c) => c.name === "username")) {
+  db.exec("ALTER TABLE users ADD COLUMN username TEXT");
+}
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username ON users(username) WHERE username IS NOT NULL");
 db.exec(
   "CREATE UNIQUE INDEX IF NOT EXISTS idx_node_port ON servers(node_id,port) WHERE port>0",
 );
@@ -134,6 +139,7 @@ export function getUser(id: string): User | undefined {
     ? {
         id: u.id,
         email: u.email,
+        username: u.username || undefined,
         name: u.name,
         role: u.role,
         balance: u.balance,

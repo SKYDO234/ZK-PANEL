@@ -119,10 +119,11 @@ export async function createUser(
   email: string,
   password: string,
   role: "admin" | "user" = "user",
+  username?: string,
 ) {
   const id = uid("usr_");
   db.prepare(
-    "INSERT INTO users(id,name,email,password,role,created_at) VALUES(?,?,?,?,?,?)",
+    "INSERT INTO users(id,name,email,password,role,created_at,username) VALUES(?,?,?,?,?,?,?)",
   ).run(
     id,
     name,
@@ -130,6 +131,7 @@ export async function createUser(
     await hashPassword(password),
     role,
     now(),
+    username?.toLowerCase() || null,
   );
   return getUser(id)!;
 }

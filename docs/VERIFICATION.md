@@ -7,7 +7,7 @@ Verified on **1 November 2026** in the development workspace, using Node.js 22 a
 | Check                              | Result                                                                                          |
 | ---------------------------------- | ----------------------------------------------------------------------------------------------- |
 | `npm run typecheck`                | Passed                                                                                          |
-| `npm test`                         | **32 passed, 0 failed**                                                                         |
+| `npm test`                         | **34 passed, 0 failed**                                                                         |
 | `npm run build`                    | Passed: frontend, panel, agent, Discord bot, command registration and both admin/import CLIs    |
 | `npm run test:ui`                  | **3 passed, 0 failed** in Chromium                                                              |
 | `npm audit --audit-level=moderate` | **0 vulnerabilities** at verification time                                                      |
@@ -32,6 +32,14 @@ The browser tests use the supplied Chromium executable override in this sandbox.
 - Browser rendering of principal panel pages, mobile navigation/viewport fit, and a complete demo wallet → deployment → console → file → backup/restore → deletion workflow.
 
 Additional manual browser checks covered plugin installation, API-key creation and the unconfigured Discord setup guide. No uncaught page exceptions were observed in the principal-page smoke test.
+
+## Codespaces installer verification
+
+- `bash -n install.sh` passed.
+- `bash install.sh --no-start` completed locally, installed locked dependencies, built all bundles, generated an ignored environment file and created the guarded development administrator.
+- A repeated install preserved the existing administrator and did not reset its password.
+- Automated tests verify username/email login, wrong-password rejection, disabled automatic demo login, bootstrap idempotency and refusal in Docker mode / without the explicit development opt-in.
+- The actual GitHub Codespaces provisioning lifecycle and private-port forwarding were not exercised from this sandbox; the devcontainer configuration is provided for that environment.
 
 ## Not verified / external requirements
 

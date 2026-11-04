@@ -6,6 +6,30 @@ ZK combines a charcoal-and-lime React interface with a TypeScript API, SQLite pe
 
 > **Release status: functional v0.1 foundation, not an audited production hosting service.** The interactive preview runs in explicitly labelled demo mode. Docker provisioning, real Discord credentials, live Stripe payments, and remote-node operation need validation on your own infrastructure before accepting customers. See [Production guide](docs/PRODUCTION.md) and [Verification](docs/VERIFICATION.md).
 
+## One-command GitHub Codespaces install
+
+Open this repository in a GitHub Codespace. The included `.devcontainer/devcontainer.json` runs the installer automatically and forwards port **3000** as a private port. You can also run it manually in the Codespace terminal:
+
+```bash
+bash install.sh
+```
+
+The installer installs Node.js 22 locally when needed (with checksum verification), installs locked npm dependencies, builds the panel, creates a persistent local session secret, and starts the panel. It does not require sudo or delete existing data. Re-running it preserves the environment and does not reset an existing administrator password.
+
+**Development login:** `admin` / `admin123` (email alternative: `admin@zk.local`).
+
+> This shortcut is explicitly development-only. Change the password in Settings before sharing access, keep the forwarded port **Private**, and never reuse this database/credentials for production. Docker/production mode refuses the bootstrap shortcut. The Codespace runs demo compute, not real game hosting.
+
+Useful commands:
+
+```bash
+bash install.sh --no-start     # install/build/bootstrap only
+bash install.sh --start-only   # start in background; log: data/codespace.log
+npm run admin:bootstrap-dev    # explicit development bootstrap (guarded)
+```
+
+Stop a background Codespace panel with `kill "$(cat data/codespace.pid)"`. The installer-generated `.env.codespace`, local Node toolchain and runtime data are ignored by Git.
+
 ## Explore locally
 
 Requires **Node.js 22.13+** and npm. Linux is required for the descriptor-anchored workspace file operations.

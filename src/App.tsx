@@ -503,6 +503,7 @@ function Auth() {
               : "Sign in to your workspace."}
           </p>
           {error && <div className="inline-alert error">{error}</div>}
+          {!register && config?.devBootstrap && <div className="inline-alert warning">Development administrator: <strong>admin / admin123</strong>. Change this password in Settings before sharing the Codespace. Never use these credentials for production.</div>}
           <>
             {register && (
               <Field label="Your name" required>
@@ -515,13 +516,13 @@ function Auth() {
                 />
               </Field>
             )}
-            <Field label="Email address" required>
+            <Field label={register ? "Email address" : "Username or email"} required>
               <input
                 name="email"
-                type="email"
-                placeholder="you@example.com"
+                type={register ? "email" : "text"}
+                placeholder={register ? "you@example.com" : "admin or you@example.com"}
                 required
-                autoComplete="email"
+                autoComplete={register ? "email" : "username"}
               />
             </Field>
             <Field

@@ -94,6 +94,8 @@ export function publicServer(s: Server): Server {
 api.get("/config", (_req, res) =>
   res.json({
     mode: config.mode,
+    autoDemo: config.autoDemo,
+    devBootstrap: config.devBootstrap,
     registration: config.registration,
     version: "0.1.0",
     stripe: !!process.env.STRIPE_SECRET_KEY,
@@ -111,8 +113,8 @@ api.post(
   }),
   (_req, res) => {
     assert(
-      config.mode === "demo",
-      "Demo access is disabled on production nodes.",
+      config.autoDemo,
+      "Automatic demo access is disabled for this workspace.",
       403,
     );
     createSession("demo-user", res);
@@ -131,18 +133,18 @@ const authLimit = rateLimit({
 api.post("/auth/login", authLimit, async (req, res) => {
   const body = z
     .object({
-      email: z.string().email().max(254),
+      email: z.string().trim().min(1).max(254),
       password: z.string().min(1).max(128),
     })
     .parse(req.body);
   const row = db
-    .prepare("SELECT id,password FROM users WHERE email=?")
-    .get(body.email.toLowerCase()) as any;
+    .prepare("SELECT id,password FROM users WHERE email=? OR username=?")
+    .get(body.email.toLowerCase(), body.email.toLowerCase()) as any;
   const valid = await verifyPassword(
     body.password,
     row?.password || "00000000000000000000000000000000:" + "0".repeat(128),
   );
-  assert(row && valid, "Email or password is incorrect.", 401);
+  assert(row && valid, "Username/email or password is incorrect.", 401);
   const u = getUser(row.id)!;
   assert(!u.suspended, "Account suspended. Contact support.", 403);
   createSession(u.id, res);
