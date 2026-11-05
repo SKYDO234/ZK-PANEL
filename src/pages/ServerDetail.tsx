@@ -76,10 +76,12 @@ import {
 import Console from "../components/Console";
 import FileManager from "../components/FileManager";
 import PolicyEditor from "../components/PolicyEditor";
+import MinecraftProperties from "../components/MinecraftProperties";
 const tabs = [
   { id: "", name: "Console", icon: Terminal },
   { id: "files", name: "Files", icon: FolderOpen },
   { id: "plugins", name: "Plugins", icon: Puzzle },
+  { id: "properties", name: "Properties", icon: Settings2 },
   { id: "backups", name: "Backups", icon: HardDrive },
   { id: "schedules", name: "Schedules", icon: Clock3 },
   { id: "autopilot", name: "Autopilot", icon: Sparkles },
@@ -290,7 +292,8 @@ export default function ServerDetail() {
       </div>
       <nav className="server-tabs">
         {tabs
-          .filter((t) => t.id !== "plugins" || s.kind === "minecraft")
+          .filter((t) => (t.id !== "plugins" && t.id !== "properties") || s.kind === "minecraft")
+          .filter((t) => t.id !== "properties" || !/bedrock|velocity/i.test(s.software))
           .map((t) => (
             <Link
               key={t.id}
@@ -385,6 +388,8 @@ export default function ServerDetail() {
           <FileManager server={s} />
         ) : tab === "plugins" ? (
           <PluginManager server={s} />
+        ) : tab === "properties" && s.kind === "minecraft" && !/bedrock|velocity/i.test(s.software) ? (
+          <MinecraftProperties server={s} />
         ) : tab === "backups" ? (
           <Backups server={s} />
         ) : tab === "schedules" ? (

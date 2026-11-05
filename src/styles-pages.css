@@ -1,1 +1,15 @@
 /* ZK PANEL: component and page styles are maintained in styles.css. */
+
+/* Minecraft configuration: a focused, JTG-inspired management workflow. */
+.properties-body { padding: 0 24px 24px; }
+.properties-body > .inline-alert { margin-bottom: 20px; }
+.properties-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; }
+.property-field { display: flex; flex-direction: column; gap: 7px; padding: 18px; border: 1px solid var(--border, #303830); border-radius: 12px; background: rgba(255,255,255,.018); }
+.property-field > span { font-size: 14px; font-weight: 600; }
+.property-field small { color: #99a49a; font-size: 12px; min-height: 18px; }
+.property-field input, .property-field select { width: 100%; border: 1px solid #394239; border-radius: 8px; background: #151a16; color: #edf3e9; padding: 10px 12px; font: inherit; }
+.property-field input:focus, .property-field select:focus { outline: 2px solid #a7df68; outline-offset: 1px; }
+.properties-actions { display: flex; align-items: center; justify-content: flex-end; gap: 10px; margin-top: 22px; flex-wrap: wrap; }
+.properties-actions > span { margin-right: auto; color: #99a49a; font-size: 12px; }
+.properties-note { color: #99a49a; font-size: 12px; text-align: right; margin: 10px 0 0; }
+@media (max-width: 700px) { .properties-grid { grid-template-columns: 1fr; } .properties-body { padding: 0 16px 18px; } }

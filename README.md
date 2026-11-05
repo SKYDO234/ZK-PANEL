@@ -73,7 +73,7 @@ The demo includes six deployments, three fictional regions, a prepaid wallet, co
 
 - **Workspace:** responsive dashboard, deployment search/filters, global search, notifications, activity, account settings and API keys.
 - **Deployments:** guided ZIYN selection, resource plans, region selection, startup validation, wallet debit, provisioning state, power actions, renewal and confirmed deletion.
-- **Minecraft:** Paper, Purpur, Fabric, Forge, NeoForge, Vanilla, Spigot, Bedrock and Velocity ZIYNs; version/startup settings; itzg automatic JAR installation in Docker mode; console; Modrinth plugin compatibility and checksum verification; world files and backups.
+- **Minecraft:** Paper, Purpur, Fabric, Forge, NeoForge, Vanilla, Spigot, Bedrock and Velocity ZIYNs; version/startup settings; a JTG-inspired Java server properties editor (PvP, flight, command blocks and distances); itzg automatic JAR installation in Docker mode; console; Modrinth plugin compatibility and checksum verification; world files and backups.
 - **Other workloads:** Rust/Valheim community-image ZIYNs, Node/Python bots, static/Node websites, Alpine/Ubuntu containers and Redis. Community images are disabled in Docker mode until explicitly approved.
 - **Files:** browsing, text editing, create/rename/delete, upload/download, traversal protection, descriptor-anchored opens, per-workspace mutation locks and upload quotas.
 - **Backups:** real compressed workspace archives, SHA-256 checksums, download, stopped restore, archive validation, staging and rollback. Minecraft live backups request world-save flushing.
