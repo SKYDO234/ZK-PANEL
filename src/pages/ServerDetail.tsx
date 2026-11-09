@@ -74,6 +74,7 @@ import {
   Progress,
 } from "../components/ui";
 import Console from "../components/Console";
+import MinecraftVersionInput from "../components/MinecraftVersionInput";
 import FileManager from "../components/FileManager";
 import PolicyEditor from "../components/PolicyEditor";
 import MinecraftProperties from "../components/MinecraftProperties";
@@ -1322,7 +1323,9 @@ function ServerSettings({ server: s }: { server: Server }) {
                     : v.description
                 }
               >
-                {v.options ? (
+                {v.key === "VERSION" && s.kind === "minecraft" ? (
+                  <MinecraftVersionInput software={s.templateId} value={env[v.key] || ""} disabled={s.status === "running"} onChange={(value) => setEnv({ ...env, [v.key]: value })} />
+                ) : v.options ? (
                   <select
                     disabled={s.status === "running"}
                     value={env[v.key] || v.default}

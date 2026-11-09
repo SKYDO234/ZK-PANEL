@@ -12,6 +12,7 @@ import { createReadStream } from "node:fs";
 import path from "node:path";
 import { config, assert, HttpError } from "./config.js";
 import { plans } from "./catalog.js";
+import { minecraftVersions } from "./minecraft-versions.js";
 import { parseZiynDocument } from "../shared/ziyn.js";
 import {
   db,
@@ -274,6 +275,9 @@ api.delete("/keys/:id", (req, res) => {
   res.json({ ok: true });
 });
 api.get("/templates", (_req, res) => res.json(templates.all()));
+api.get("/minecraft/versions/:software", async (req, res) => {
+  res.json({ versions: await minecraftVersions(String(req.params.software)) });
+});
 api.get("/plans", (_req, res) => res.json(plans));
 api.get("/servers", (req, res) =>
   res.json(

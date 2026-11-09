@@ -130,7 +130,7 @@ export async function state(s: Server): Promise<Status> {
     const info = await docker().getContainer(containerName(s.id)).inspect();
     return info.State.Running
       ? "running"
-      : info.State.Dead || info.State.OOMKilled
+      : info.State.Dead || info.State.OOMKilled || (info.State.ExitCode !== 0 && info.State.StartedAt !== "0001-01-01T00:00:00Z")
         ? "error"
         : "offline";
   } catch (e: any) {
@@ -200,47 +200,54 @@ export async function stats(s: Server): Promise<Omit<Metrics, "history">> {
     ),
   };
 }
-const cursors = new Map<string, number>();
+// Docker's `since` is second-granularity; retain the full nanosecond timestamp
+// and the occurrence count so multiple lines in one timestamp are not lost.
+type Cursor = { timestamp: string; count: number };
+const cursors = new Map<string, Cursor>();
+export function selectLogLines(text: string, cursor?: Cursor): { lines: string[]; cursor?: Cursor } {
+  let latest = cursor;
+  let repeated = 0;
+  let group = "";
+  const lines: string[] = [];
+  for (const line of text.split("\n").filter(Boolean)) {
+    const match = line.match(/^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z)\s(.*)$/);
+    if (!match) { lines.push(line); continue; }
+    const stamp = match[1].includes(".")
+      ? match[1].replace(/\.(\d+)Z$/, (_, digits: string) => "." + digits.padEnd(9, "0") + "Z")
+      : match[1].replace(/Z$/, ".000000000Z");
+    if (stamp !== group) { group = stamp; repeated = 0; }
+    repeated++;
+    if (cursor && (stamp < cursor.timestamp || (stamp === cursor.timestamp && repeated <= cursor.count))) continue;
+    lines.push(match[2]);
+    if (!latest || stamp > latest.timestamp) latest = { timestamp: stamp, count: repeated };
+    else if (stamp === latest.timestamp) latest = { timestamp: stamp, count: repeated };
+  }
+  return { lines, cursor: latest };
+}
 export async function readLogs(s: Server): Promise<string[]> {
-  const buffer = (await docker()
-    .getContainer(containerName(s.id))
-    .logs({
-      stdout: true,
-      stderr: true,
-      tail: cursors.has(s.id) ? 100 : 80,
-      since: cursors.get(s.id) || 0,
-      timestamps: true,
-    })) as unknown as Buffer;
+  const cursor = cursors.get(s.id);
+  const since = cursor ? Math.max(0, Math.floor(Date.parse(cursor.timestamp) / 1000) - 1) : 0;
+  const buffer = (await docker().getContainer(containerName(s.id)).logs({
+    stdout: true, stderr: true, tail: cursor ? 10000 : 500, since, timestamps: true,
+  })) as unknown as Buffer;
   let text = buffer.toString("utf8");
-  if (
-    buffer.length > 8 &&
-    buffer[0] !== 0x5b &&
-    buffer[1] === 0 &&
-    buffer[2] === 0
-  ) {
+  if (buffer.length > 8 && buffer[1] === 0 && buffer[2] === 0 && buffer[3] === 0) {
     const out = new PassThrough();
-    dockerClient().modem.demuxStream(Readable.from([buffer]) as any, out, out);
-    text = out.read()?.toString("utf8") || "";
+    const chunks: Buffer[] = [];
+    out.on("data", (chunk: Buffer) => chunks.push(chunk));
+    const input = Readable.from([buffer]);
+    dockerClient().modem.demuxStream(input as any, out, out);
+    await new Promise<void>((resolve, reject) => { input.on("end", resolve); input.on("error", reject); });
+    text = Buffer.concat(chunks).toString("utf8");
   }
-  const lines = text.trim().split("\n").filter(Boolean);
-  let max = cursors.get(s.id) || 0;
-  const result: string[] = [];
-  for (const line of lines) {
-    const match = line.match(/^(\d{4}-\d\d-\d\dT[\d:.]+)Z?\s?(.*)$/);
-    if (match) {
-      const seconds = new Date(match[1] + "Z").getTime() / 1000;
-      if (seconds <= max) continue;
-      max = seconds;
-      result.push(match[2]);
-    } else result.push(line);
-  }
-  if (max) cursors.set(s.id, max);
-  return result;
+  const result = selectLogLines(text, cursor);
+  if (result.cursor) cursors.set(s.id, result.cursor);
+  return result.lines;
 }
 export async function command(s: Server, line: string) {
   assert(line.length <= 2000, "Command is too long.");
   const c = docker().getContainer(containerName(s.id));
-  if (s.kind === "minecraft" && s.templateId !== "velocity") {
+  if (s.kind === "minecraft" && !["velocity", "bedrock"].includes(s.templateId)) {
     const exec = await c.exec({
       Cmd: ["rcon-cli", line],
       AttachStdout: true,
@@ -248,12 +255,17 @@ export async function command(s: Server, line: string) {
     });
     const stream = await exec.start({ hijack: true });
     const out = new PassThrough();
+    const chunks: Buffer[] = [];
+    out.on("data", (chunk: Buffer) => chunks.push(chunk));
     c.modem.demuxStream(stream, out, out);
     await new Promise<void>((resolve, reject) => {
       stream.on("end", resolve);
       stream.on("error", reject);
     });
-    return out.read()?.toString("utf8") || "Command sent.";
+    const output = Buffer.concat(chunks).toString("utf8").trim();
+    const result = await exec.inspect();
+    if (result.ExitCode !== 0) throw new Error(output || `RCON command failed (exit ${result.ExitCode}). Is Minecraft ready?`);
+    return output || "Command sent.";
   }
   const stream = await c.attach({ stream: true, stdin: true, hijack: true });
   stream.write(line + "\n");

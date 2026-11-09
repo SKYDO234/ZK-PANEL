@@ -1,3 +1,4 @@
+import MinecraftVersionInput from "../components/MinecraftVersionInput";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import {
@@ -332,7 +333,9 @@ export default function CreateDeployment() {
                     hint={v.description}
                     required={v.required}
                   >
-                    {v.options ? (
+                    {v.key === "VERSION" && t.kind === "minecraft" ? (
+                      <MinecraftVersionInput software={t.id} value={env[v.key] ?? v.default} onChange={(value) => setEnv({ ...env, [v.key]: value })} />
+                    ) : v.options ? (
                       <select
                         value={env[v.key] ?? v.default}
                         onChange={(e) =>

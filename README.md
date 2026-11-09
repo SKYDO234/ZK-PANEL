@@ -126,3 +126,11 @@ Not included in v0.1: SFTP, subuser permissions, automatic custom-domain/TLS rou
 ## Verification
 
 See [docs/VERIFICATION.md](docs/VERIFICATION.md) for executed checks and explicit untested boundaries. Generated runtime state lives in ignored `data/`; never publish that directory, `.env`, API keys, node tokens or the SQLite database.
+
+### Minecraft versions and startup troubleshooting
+
+The version field suggests releases from the upstream Paper, Purpur, Fabric and Mojang providers. Provider access is required; if a lookup fails or the selected software is not yet supported, enter the version manually and verify it with the software provider. This list is not a guarantee that every version works with the configured Java image; older releases can require a different Java version.
+
+In real Docker mode, open the deployment's **Console** to inspect output from the container, including output after a crash. Autopilot pauses after three unsuccessful recovery attempts instead of restarting indefinitely. A Docker container being marked running does not necessarily mean Minecraft has finished downloading its JAR or is ready to accept players. If Paper still fails, inspect the last console error, available RAM, disk space, image/network access and EULA; the exact cause cannot be determined without the server's logs. You can disable recovery in the deployment's Autopilot tab while investigating.
+
+Playit tunnel management, the referenced Pterodactyl VPS template and a JTG-style admin settings redesign are not implemented by these changes. Do not expose a Docker socket or a VPS image to untrusted users as a substitute for a dedicated, properly isolated node.

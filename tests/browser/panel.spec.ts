@@ -146,3 +146,14 @@ test('Minecraft properties edit preserves unrelated settings and protects concur
   await page.getByLabel(/Player versus player/).selectOption('true');
   await expect(page.getByRole('button', { name: 'Save properties' })).toBeDisabled();
 });
+
+test("Minecraft version field offers provider versions and preserves manual input", async ({ page }) => {
+  await page.route("**/api/minecraft/versions/paper", route => route.fulfill({ json: { versions: ["1.21.11", "1.21.10"] } }));
+  await page.goto("/servers/new");
+  await page.locator(".ziyn-choice").filter({ has: page.getByRole("heading", { name: "Paper POPULAR", exact: true }) }).click();
+  await expect(page.getByText("2 versions from the paper provider.", { exact: false })).toBeVisible();
+  const version = page.getByRole("combobox", { name: "Minecraft version" });
+  await version.fill("1.21.11");
+  await expect(version).toHaveValue("1.21.11");
+  await expect(page.locator('datalist option[value="1.21.11"]')).toHaveCount(1);
+});

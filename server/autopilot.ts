@@ -15,6 +15,7 @@ import * as runtime from "./runtime.js";
 import { changePower, createBackup } from "./services.js";
 import { config } from "./config.js";
 const failures = new Map<string, { count: number; last: number }>();
+const healthySince = new Map<string, number>();
 const idle = new Map<string, number>();
 const backupFailures = new Map<string, number>();
 let running = false;
@@ -23,6 +24,7 @@ export async function tick() {
   running = true;
   try {
     for (const s of getServers()) {
+      if (s.status !== "running") healthySince.delete(s.id);
       const owner = getUser(s.ownerId);
       if (!owner) continue;
       const user = { ...owner, role: "user" as const };
@@ -79,6 +81,9 @@ export async function tick() {
         try {
           const actual = await runtime.status(s);
           if (actual === "offline" || actual === "error") {
+            healthySince.delete(s.id);
+            // Capture the final crash output before recovery replaces the container.
+            await runtime.syncLogs(s);
             if (setting("desired-state:" + s.id) === "offline") {
               const latest = getServer(s.id)!;
               latest.status = "offline";
@@ -132,7 +137,10 @@ export async function tick() {
               saveServer(latest);
             }
           } else {
-            failures.delete(s.id);
+            const since = healthySince.get(s.id) ?? Date.now();
+            healthySince.set(s.id, since);
+            // A briefly running process is not proof that a crash loop has recovered.
+            if (Date.now() - since >= 5 * 60_000) failures.delete(s.id);
             if (p.idleSleep) {
               const stats = await runtime.metrics(s);
               const inactive =

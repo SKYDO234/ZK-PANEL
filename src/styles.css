@@ -7463,3 +7463,24 @@ tbody tr:hover {
     scroll-behavior: auto !important;
   }
 }
+
+/* A terminal-first console, inspired by game-server control panels. */
+.console-panel { background: #11151b; border-color: #313b45; overflow: hidden; }
+.console-toolbar { background: #1a2029; border-color: #303a46; padding: 15px 18px; }
+.console-toolbar strong { color: #e5ebf1; font-size: 13px; font-weight: 650; }
+.console-toolbar > div { color: #9caec0; }
+.console-filter { background: #151a21; border-color: #29333e; color: #8997a6; }
+.console-filter > input { color: #d4dce5; font-size: 12px; }
+.console-filter > span:not(.badge) { font-size: 10px; }
+.console-output { height: 460px; background: #0d1117; padding: 18px; color: #d2dbe4; font-size: 12px; line-height: 1.65; }
+.console-welcome { color: #afbdca; font-size: 12px; margin-bottom: 16px; }
+.console-welcome > span { background: #253428; color: #bce596; }
+.console-welcome small { color: #728395; font-size: 10px; }
+.console-line { margin: 3px 0; gap: 10px; }
+.console-line > time, .console-level { font-size: 11px; color: #778a9c; }
+.console-line > span:last-child { color: #d2dbe4; }
+.console-empty { color: #7d8c99; }
+.console-input { background: #191f27; border-color: #303a46; color: #bce596; }
+.console-input input { color: #eff4f9; font-size: 13px; flex: 1; min-width: 0; }
+.console-input .btn { font-size: 12px; }
+@media (max-width: 700px) { .console-output { height: 360px; } }
