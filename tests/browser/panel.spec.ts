@@ -155,6 +155,9 @@ test("Minecraft version field offers provider versions and preserves manual inpu
   const version = page.getByRole("combobox", { name: "Minecraft version" });
   await version.fill("1.21.11");
   await expect(version).toHaveValue("1.21.11");
+  await expect(page.getByText("itzg/minecraft-server:java21", { exact: true })).toBeVisible();
+  await version.fill("1.16.5");
+  await expect(page.getByText("itzg/minecraft-server:java8", { exact: true })).toBeVisible();
   await expect(page.locator('datalist option[value="1.21.11"]')).toHaveCount(1);
 });
 
@@ -188,4 +191,37 @@ test('Playit controls display the local tunnel instructions and claim link', asy
   await expect(page.locator(".playit-panel").getByText(`127.0.0.1:${mc.port}`)).toBeVisible();
   await page.getByRole('button', { name: 'Start agent' }).click();
   await expect(page.getByRole('link', { name: 'Claim this agent' })).toHaveAttribute('href', 'https://playit.gg/claim/Test123');
+});
+
+
+test('clearing the console view keeps old logs hidden while new output arrives', async ({ page }) => {
+  await page.goto('/servers/survival-smp');
+  const log = page.getByRole('log');
+  await expect(log.locator('.console-line').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Clear console view' }).click();
+  await expect(log.locator('.console-line')).toHaveCount(0);
+  await page.getByLabel('Console command').fill('list');
+  await page.getByLabel('Console command').press('Enter');
+  await expect(log).toContainText('0 of a max');
+  await expect(log).not.toContainText('Environment validated');
+});
+
+test('console renders clean Minecraft output from persisted Docker logs', async ({ page }) => {
+  const message = '2026-11-09T10:35:49.473123456Z \x1b[0m>\x1b[33;1m[10:35:49 WARN]: Server warning\x1b[0m\r';
+  const lines = [{ id: 'ansi-log', time: '2026-11-09T10:35:49Z', level: 'warn', message }];
+  await page.route('**/api/servers/survival-smp/console', route => route.fulfill({ json: lines }));
+  await page.route('**/api/servers/survival-smp/events', route => route.fulfill({ headers: { 'Content-Type': 'text/event-stream' }, body: `data: ${JSON.stringify({ lines })}\n\n` }));
+  await page.goto('/servers/survival-smp');
+  const output = page.getByRole('log');
+  await expect(output).toContainText('>[10:35:49 WARN]: Server warning');
+  await expect(output).not.toContainText('2026-11-09T10:35:49');
+  await expect(output).not.toContainText('[33;1m');
+});
+
+test('administrator can generate manual subdomain DNS instructions', async ({ page }) => {
+  await page.goto('/servers/survival-smp/network');
+  await page.getByLabel('Subdomain').fill('play.example.com');
+  await page.getByLabel('Public node IP').fill('203.0.113.10');
+  await page.getByRole('button', { name: 'Show manual record' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'play.example.com' })).toContainText('203.0.113.10');
 });

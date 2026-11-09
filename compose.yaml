@@ -14,11 +14,14 @@ services:
       SESSION_SECRET: ${SESSION_SECRET:?Set SESSION_SECRET in .env}
       COOKIE_SECURE: ${COOKIE_SECURE:-true}
       ALLOW_REGISTRATION: ${ALLOW_REGISTRATION:-false}
-      IMAGE_ALLOWLIST: ${IMAGE_ALLOWLIST:-itzg/minecraft-server:java21,itzg/mc-proxy:java21,node:22-alpine,python:3.12-alpine,nginxinc/nginx-unprivileged:1.27-alpine,alpine:3.22,redis:7.4-alpine}
+      IMAGE_ALLOWLIST: ${IMAGE_ALLOWLIST:-itzg/minecraft-server:java8,itzg/minecraft-server:java17,itzg/minecraft-server:java21,itzg/minecraft-server:java25,itzg/minecraft-bedrock-server:latest,itzg/mc-proxy:java21,node:22-alpine,python:3.12-alpine,nginxinc/nginx-unprivileged:1.27-alpine,alpine:3.22,redis:7.4-alpine}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
       DISCORD_BOT_TOKEN: ${DISCORD_BOT_TOKEN:-}
       DISCORD_APPLICATION_ID: ${DISCORD_APPLICATION_ID:-}
+      CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
+      CLOUDFLARE_ZONE_ID: ${CLOUDFLARE_ZONE_ID:-}
+      CLOUDFLARE_ZONE_NAME: ${CLOUDFLARE_ZONE_NAME:-}
     volumes:
       - panel-data:/app/data
     security_opt:

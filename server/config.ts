@@ -9,7 +9,8 @@ export const dataDir = path.resolve(
   process.env.DATA_DIR || path.join(root, "data"),
 );
 mkdirSync(dataDir, { recursive: true });
-mkdirSync(path.join(dataDir, "workspaces"), { recursive: true });
+const workspacePath = path.resolve(process.env.WORKSPACE_PATH || path.join(dataDir, "workspaces"));
+mkdirSync(workspacePath, { recursive: true });
 mkdirSync(path.join(dataDir, "backups"), { recursive: true });
 let secret = process.env.SESSION_SECRET;
 if (!secret) {
@@ -30,6 +31,7 @@ export const config = {
   devBootstrap: mode === "demo" && process.env.ZK_DEV_BOOTSTRAP === "true" && (process.env.CODESPACES === "true" || process.env.ZK_ALLOW_LOCAL_DEV_BOOTSTRAP === "true"),
   root,
   dataDir,
+  workspacePath,
   secret: secret!,
   port: Number(process.env.PORT || 3000),
   publicUrl: (
@@ -46,7 +48,7 @@ export const config = {
   dockerSocket: process.env.DOCKER_SOCKET || "/var/run/docker.sock",
   imageAllowlist: (
     process.env.IMAGE_ALLOWLIST ||
-    "itzg/minecraft-server:java21,itzg/minecraft-bedrock-server:latest,itzg/mc-proxy:java21,node:22-alpine,python:3.12-alpine,nginxinc/nginx-unprivileged:1.27-alpine,alpine:3.22,redis:7.4-alpine"
+    "itzg/minecraft-server:java8,itzg/minecraft-server:java17,itzg/minecraft-server:java21,itzg/minecraft-server:java25,itzg/minecraft-bedrock-server:latest,itzg/mc-proxy:java21,node:22-alpine,python:3.12-alpine,nginxinc/nginx-unprivileged:1.27-alpine,alpine:3.22,redis:7.4-alpine"
   ).split(","),
   maxServers: Number(process.env.MAX_SERVERS_PER_USER || 20),
 };

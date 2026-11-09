@@ -7492,3 +7492,8 @@ tbody tr:hover {
 .playit-panel { display: flex; flex-direction: column; gap: 16px; }
 .playit-panel p { line-height: 1.6; }
 .playit-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 700px) {
+  .console-output { font-size: 12px; line-height: 1.65; }
+  .console-line > time, .console-level { font-size: 10px; }
+  .console-line > span:last-child { flex: 1; min-width: 0; }
+}

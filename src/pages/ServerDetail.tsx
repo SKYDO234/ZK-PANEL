@@ -75,6 +75,8 @@ import {
 } from "../components/ui";
 import Console from "../components/Console";
 import PlayitTunnel from "../components/PlayitTunnel";
+import Subdomain from "../components/Subdomain";
+import { runtimeImage } from "../../shared/minecraft-runtime";
 import MinecraftVersionInput from "../components/MinecraftVersionInput";
 import FileManager from "../components/FileManager";
 import PolicyEditor from "../components/PolicyEditor";
@@ -278,8 +280,8 @@ export default function ServerDetail() {
           <strong>
             {s.kind === "minecraft" ? (
               <>
-                {metrics?.players || 0}
-                <small>/ {metrics?.maxPlayers || 20}</small>
+                {metrics?.players ?? "—"}
+                <small>{metrics?.maxPlayers != null ? `/ ${metrics.maxPlayers}` : " unavailable"}</small>
               </>
             ) : (
               uptime(metrics?.uptime || 0)
@@ -1119,6 +1121,7 @@ function NetworkTab({ server: s }: { server: Server }) {
             : "Open this port in your node firewall. For a domain, point DNS to the node and configure a TLS reverse proxy."}
         </div>
       </Panel>
+      {data!.user.role === "admin" && <Subdomain server={s} />}
       {s.kind === "minecraft" && data!.mode === "docker" && data!.user.role === "admin" ? <PlayitTunnel server={s} /> : <Panel className="form-panel">
         <PanelHeading
           title="Custom domain ready"
@@ -1352,6 +1355,9 @@ function ServerSettings({ server: s }: { server: Server }) {
                 )}
               </Field>
             ))}
+            {startup?.template.image === "itzg/minecraft-server:java21" && startup.template.source === "Native ZIYN / itzg/minecraft-server" && (
+              <div className="inline-note"><Info size={16} /><span>Automatic Java image: <strong>{runtimeImage(startup.template, env)}</strong>. The node administrator must approve this image; verify Java compatibility for older or modded servers.</span></div>
+            )}
             <Button
               type="submit"
               loading={busy}

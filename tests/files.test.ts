@@ -87,3 +87,21 @@ test('Node website workspace contains a runnable starter application', async () 
   assert.match(await files.readFile('node-website', 'index.js'), /process\.env\.PORT/);
   assert.match(await files.readFile('node-website', 'index.html'), /Test Site/);
 });
+
+test('Minecraft EULA is written only with explicit acceptance and existing files are repaired', async () => {
+  await files.initializeFiles('eula-accepted', 'minecraft', 'test', 'paper', true);
+  assert.match(await files.readFile('eula-accepted', 'eula.txt'), /^eula=true$/m);
+  await files.initializeFiles('eula-declined', 'minecraft', 'test', 'paper', false);
+  const before = await files.readFile('eula-declined', 'eula.txt');
+  await files.ensureAcceptedEula('eula-declined', false, 20);
+  assert.equal(await files.readFile('eula-declined', 'eula.txt'), before);
+  assert.match(before, /^eula=false$/m);
+  await files.writeFile('eula-declined', 'eula.txt', '# Keep my comment\r\neula=false\r\nother=value\r\neula: false\r\n', 20);
+  await files.ensureAcceptedEula('eula-declined', true, 20);
+  assert.equal(await files.readFile('eula-declined', 'eula.txt'), '# Keep my comment\r\neula=true\r\nother=value\r\neula=true\r\n');
+  await files.ensureAcceptedEula('eula-declined', true, 20);
+  assert.equal(await files.readFile('eula-declined', 'eula.txt'), '# Keep my comment\r\neula=true\r\nother=value\r\neula=true\r\n');
+  await fs.rm(path.join(files.workspace('eula-declined'), 'eula.txt'));
+  await fs.symlink('/etc/passwd', path.join(files.workspace('eula-declined'), 'eula.txt'));
+  await assert.rejects(files.ensureAcceptedEula('eula-declined', true, 20), /Symbolic links/);
+});

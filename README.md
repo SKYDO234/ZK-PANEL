@@ -135,6 +135,10 @@ See [docs/VERIFICATION.md](docs/VERIFICATION.md) for executed checks and explici
 
 ### Minecraft versions and startup troubleshooting
 
+Native Java Minecraft ZIYNs select an itzg Java image based on the requested version (Java 8 for older versions, Java 17 for 1.17–1.20.4, Java 21 for 1.20.5–1.21.x and Java 25 for newer year-based releases). Image selection is approximate; older mods and some server builds require different Java versions. The node's `IMAGE_ALLOWLIST` must include the selected image, including on remote agents. Existing installations with a custom allowlist must add the desired `itzg/minecraft-server:java8`, `java17`, `java21` and `java25` tags and restart the relevant service.
+
+For Java servers, when you explicitly accept the Minecraft EULA in startup settings, ZK writes `eula=true` to the workspace EULA file. Existing servers are synchronized on their next start or restart; the panel does not accept the EULA for you.
+
 The version field suggests releases from the upstream Paper, Purpur, Fabric, Forge, NeoForge, Spigot, Bedrock and Velocity providers. Bedrock suggestions use the community-maintained Bedrock-OSS archive. Provider access is required; if a lookup fails or the selected software is not yet supported, enter the version manually and verify it with the software provider. This list is not a guarantee that every version works with the configured Java image; older releases can require a different Java version.
 
 In real Docker mode, open the deployment's **Console** to inspect output from the container, including output after a crash. Autopilot pauses after three unsuccessful recovery attempts instead of restarting indefinitely. A Docker container being marked running does not necessarily mean Minecraft has finished downloading its JAR or is ready to accept players. If Paper still fails, inspect the last console error, available RAM, disk space, image/network access and EULA; the exact cause cannot be determined without the server's logs. You can disable recovery in the deployment's Autopilot tab while investigating.
@@ -148,3 +152,7 @@ Start the agent from Network, open its claim link, and create a tunnel in your P
 Panel administrators can change public registration and per-user deployment limits in **Panel administration → Settings**. Changes apply to future operations. Runtime mode, secrets, and image approvals remain environment/host configuration.
 
 The requested Pterodactyl VPS template is **not yet integrated**. Its PRoot installer, SSH credentials and multiport requirements need a dedicated compatibility and security review and real-host testing before enabling it. Do not expose a Docker socket or a VPS image to untrusted users as a substitute for a dedicated, properly isolated node.
+
+### Subdomain DNS
+
+Administrators can create DNS-only A/AAAA records in Network → Subdomain DNS, or display a record to enter manually at any DNS provider. Supply a public IP reachable from the internet, not a Codespaces web-forwarding hostname or a Playit address. For Cloudflare set `CLOUDFLARE_ZONE_NAME`, `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_API_TOKEN` in the panel environment and restart it. Use a token restricted to DNS edit for that zone. ZK refuses existing names and never overwrites them; delete or edit records at your DNS provider. Records are unproxied; DNS does not open ports, provide TLS, create a Playit tunnel, or configure HTTP routing. Connect using the allocated port; websites require a separately configured reverse proxy and TLS. DNS propagation and public node reachability are outside the panel's control.

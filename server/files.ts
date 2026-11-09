@@ -12,7 +12,7 @@ import * as tar from "tar";
 import { config, assert } from "./config.js";
 import type { FileEntry } from "../shared/types.js";
 export const workspace = (id: string) =>
-  path.join(config.dataDir, "workspaces", id);
+  path.join(config.workspacePath, id);
 export async function safePath(id: string, relative = ""): Promise<string> {
   assert(
     !relative.includes("\0") &&
@@ -186,7 +186,7 @@ export async function usage(id: string): Promise<number> {
   await walk(workspace(id));
   return total;
 }
-export async function initializeFiles(id: string, kind: string, name: string, templateId?: string) {
+export async function initializeFiles(id: string, kind: string, name: string, templateId?: string, eulaAccepted = false) {
   const root = workspace(id);
   await fs.mkdir(root, { recursive: true });
   if (kind === "website") {
@@ -242,7 +242,7 @@ http.createServer((req, res) => {
     );
     await fs.writeFile(
       path.join(root, "eula.txt"),
-      "# Accept the Minecraft EULA in Startup settings before production deployment.\neula=false\n",
+      `# Minecraft EULA: https://aka.ms/MinecraftEULA\neula=${eulaAccepted && templateId !== "bedrock" && templateId !== "velocity" ? "true" : "false"}\n`,
     );
   } else {
     await fs.writeFile(
@@ -325,6 +325,40 @@ export async function writeFile(
     } finally {
       await handle.close();
     }
+  });
+}
+/** Synchronize the Java EULA file only after explicit acceptance in startup settings. */
+export async function ensureAcceptedEula(id: string, accepted: boolean, disk: number) {
+  if (!accepted) return;
+  await locked(id, async () => {
+    const handle = await openSafe(id, "eula.txt", fsConstants.O_RDWR | fsConstants.O_CREAT);
+    try {
+      const stat = await handle.stat();
+      assert(stat.isFile() && stat.size <= 2 * 1024 * 1024, "Invalid eula.txt file.");
+      const original = (await handle.readFile()).toString("utf8");
+      assert(!original.includes("\0"), "Invalid eula.txt file.");
+      const newline = original.includes("\r\n") ? "\r\n" : "\n";
+      let found = false;
+      const lines = original.split(/\r?\n/).map((line) => {
+        if (/^\s*eula\s*(?:=|:|\s)\s*.*$/i.test(line)) { found = true; return "eula=true"; }
+        return line;
+      });
+      if (!found) {
+        if (lines.at(-1) === "") lines.pop();
+        lines.push("eula=true", "");
+      }
+      const content = lines.join(newline);
+      if (content === original) return;
+      assert((await usage(id)) - stat.size + Buffer.byteLength(content) <= disk * 1024 * 1024, "Deployment disk quota exceeded.");
+      const bytes = Buffer.from(content);
+      await handle.truncate(0);
+      let offset = 0;
+      while (offset < bytes.length) {
+        const { bytesWritten } = await handle.write(bytes, offset, bytes.length - offset, offset);
+        assert(bytesWritten > 0, "Could not write eula.txt.");
+        offset += bytesWritten;
+      }
+    } finally { await handle.close(); }
   });
 }
 export async function makeDirectory(id: string, relative: string) {

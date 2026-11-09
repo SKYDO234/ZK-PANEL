@@ -19,3 +19,11 @@ test('Docker log cursor accepts timestamps without fractional seconds', () => {
   assert.equal(first.cursor?.timestamp, '2026-01-01T00:00:01.000000000Z');
   assert.deepEqual(selectLogLines('2026-01-01T00:00:01Z hello\n', first.cursor).lines, []);
 });
+test('continuation lines under a Docker timestamp are not repeatedly ingested', () => {
+  const batch = '2026-01-01T00:00:01.100000001Z first\nsecond\nthird\n';
+  const first = selectLogLines(batch);
+  assert.deepEqual(first.lines, ['first', 'second', 'third']);
+  assert.deepEqual(selectLogLines(batch, first.cursor).lines, []);
+  const second = selectLogLines(batch + 'fourth\n2026-01-01T00:00:02.000000000Z next\nmore\n', first.cursor);
+  assert.deepEqual(second.lines, ['fourth', 'next', 'more']);
+});
