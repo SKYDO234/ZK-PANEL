@@ -75,6 +75,7 @@ import {
 } from "../components/ui";
 import Console from "../components/Console";
 import PlayitTunnel from "../components/PlayitTunnel";
+import { runtimeImage } from "../../shared/minecraft-runtime";
 import MinecraftVersionInput from "../components/MinecraftVersionInput";
 import FileManager from "../components/FileManager";
 import PolicyEditor from "../components/PolicyEditor";
@@ -278,8 +279,8 @@ export default function ServerDetail() {
           <strong>
             {s.kind === "minecraft" ? (
               <>
-                {metrics?.players || 0}
-                <small>/ {metrics?.maxPlayers || 20}</small>
+                {metrics?.players ?? "—"}
+                <small>{metrics?.maxPlayers != null ? `/ ${metrics.maxPlayers}` : " unavailable"}</small>
               </>
             ) : (
               uptime(metrics?.uptime || 0)
@@ -1352,6 +1353,9 @@ function ServerSettings({ server: s }: { server: Server }) {
                 )}
               </Field>
             ))}
+            {startup?.template.image === "itzg/minecraft-server:java21" && startup.template.source === "Native ZIYN / itzg/minecraft-server" && (
+              <div className="inline-note"><Info size={16} /><span>Automatic Java image: <strong>{runtimeImage(startup.template, env)}</strong>. The node administrator must approve this image; verify Java compatibility for older or modded servers.</span></div>
+            )}
             <Button
               type="submit"
               loading={busy}

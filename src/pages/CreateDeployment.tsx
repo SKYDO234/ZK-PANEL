@@ -1,3 +1,4 @@
+import { runtimeImage } from "../../shared/minecraft-runtime";
 import MinecraftVersionInput from "../components/MinecraftVersionInput";
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
@@ -369,6 +370,9 @@ export default function CreateDeployment() {
                   </Field>
                 ))}
               </div>
+              {t.image === "itzg/minecraft-server:java21" && t.source === "Native ZIYN / itzg/minecraft-server" && (
+                <div className="inline-note"><Info size={16} /><span>Automatic Java image: <strong>{runtimeImage(t, { VERSION: env.VERSION || t.variables.find(v => v.key === "VERSION")?.default || "" })}</strong>. The node administrator must approve this image. Older/modded versions may require different Java versions.</span></div>
+              )}
               {t.kind === "minecraft" && t.id !== "velocity" && (
                 <div className="inline-note">
                   <ShieldCheck size={17} />

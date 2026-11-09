@@ -155,6 +155,9 @@ test("Minecraft version field offers provider versions and preserves manual inpu
   const version = page.getByRole("combobox", { name: "Minecraft version" });
   await version.fill("1.21.11");
   await expect(version).toHaveValue("1.21.11");
+  await expect(page.getByText("itzg/minecraft-server:java21", { exact: true })).toBeVisible();
+  await version.fill("1.16.5");
+  await expect(page.getByText("itzg/minecraft-server:java8", { exact: true })).toBeVisible();
   await expect(page.locator('datalist option[value="1.21.11"]')).toHaveCount(1);
 });
 
@@ -188,4 +191,17 @@ test('Playit controls display the local tunnel instructions and claim link', asy
   await expect(page.locator(".playit-panel").getByText(`127.0.0.1:${mc.port}`)).toBeVisible();
   await page.getByRole('button', { name: 'Start agent' }).click();
   await expect(page.getByRole('link', { name: 'Claim this agent' })).toHaveAttribute('href', 'https://playit.gg/claim/Test123');
+});
+
+
+test('clearing the console view keeps old logs hidden while new output arrives', async ({ page }) => {
+  await page.goto('/servers/survival-smp');
+  const log = page.getByRole('log');
+  await expect(log.locator('.console-line').first()).toBeVisible();
+  await page.getByRole('button', { name: 'Clear console view' }).click();
+  await expect(log.locator('.console-line')).toHaveCount(0);
+  await page.getByLabel('Console command').fill('list');
+  await page.getByLabel('Console command').press('Enter');
+  await expect(log).toContainText('0 of a max');
+  await expect(log).not.toContainText('Environment validated');
 });

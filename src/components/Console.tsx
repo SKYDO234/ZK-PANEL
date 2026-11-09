@@ -24,15 +24,19 @@ export default function Console({ server }: { server: Server }) {
     [autoScroll, setAutoScroll] = useState(true),
     [filter, setFilter] = useState(""),
     [history, setHistory] = useState<string[]>([]),
-    [historyIndex, setHistoryIndex] = useState(-1);
-  const bottom = useRef<HTMLDivElement>(null),
+    [historyIndex, setHistoryIndex] = useState(-1),
+    [hiddenIds, setHiddenIds] = useState<Set<string>>(new Set());
+  const outputRef = useRef<HTMLDivElement>(null),
     historyRef = useRef<string[]>([]);
   useEffect(() => {
     let source: EventSource | undefined;
     let active = true;
+    let receivedEvent = false;
+    setLines([]);
+    setHiddenIds(new Set());
     api<ConsoleLine[]>("/servers/" + server.id + "/console")
       .then((l) => {
-        if (active) setLines(l);
+        if (active && !receivedEvent) setLines(l);
       })
       .catch((e) => toast(e.message, "error"));
     source = new EventSource(
@@ -47,7 +51,11 @@ export default function Console({ server }: { server: Server }) {
     source.onmessage = (e) => {
       try {
         const payload = JSON.parse(e.data);
-        setLines(payload.lines);
+        if (Array.isArray(payload.lines)) {
+          receivedEvent = true;
+          setConnected(true);
+          setLines(payload.lines);
+        }
       } catch {}
     };
     return () => {
@@ -56,8 +64,8 @@ export default function Console({ server }: { server: Server }) {
     };
   }, [server.id]);
   useEffect(() => {
-    if (autoScroll)
-      bottom.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    if (autoScroll && outputRef.current)
+      outputRef.current.scrollTop = outputRef.current.scrollHeight;
   }, [lines.length, autoScroll]);
   const send = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,8 +81,7 @@ export default function Console({ server }: { server: Server }) {
         body: { command: value },
       });
       setCommand("");
-      const l = await api<ConsoleLine[]>("/servers/" + server.id + "/console");
-      setLines(l);
+
     } catch (e) {
       toast((e as Error).message, "error");
     } finally {
@@ -82,13 +89,13 @@ export default function Console({ server }: { server: Server }) {
     }
   };
   const visible = lines.filter((l) =>
-    (l.message + " " + l.level).toLowerCase().includes(filter.toLowerCase()),
+    !hiddenIds.has(l.id) && (l.message + " " + l.level).toLowerCase().includes(filter.toLowerCase()),
   );
   const exportLogs = () => {
     const url = URL.createObjectURL(
       new Blob(
         [
-          lines
+          lines.filter((line) => !hiddenIds.has(line.id))
             .map((l) => `[${l.time}] [${l.level.toUpperCase()}] ${l.message}`)
             .join("\n"),
         ],
@@ -108,7 +115,7 @@ export default function Console({ server }: { server: Server }) {
           <Terminal size={17} />
           <strong>Live console</strong>
           <Badge tone={connected ? "green" : "neutral"} dot>
-            {connected ? "Connected" : "Reconnecting"}
+            {connected ? "Live updates" : "Reconnecting"}
           </Badge>
         </div>
         <div>
@@ -132,7 +139,7 @@ export default function Console({ server }: { server: Server }) {
             className="icon-button"
             title="Clear console view"
             aria-label="Clear console view"
-            onClick={() => setLines([])}
+            onClick={() => setHiddenIds(new Set(lines.map((line) => line.id)))}
           >
             <Trash2 size={15} />
           </button>
@@ -151,6 +158,7 @@ export default function Console({ server }: { server: Server }) {
       </div>
       <div
         className="console-output"
+        ref={outputRef}
         role="log"
         aria-label="Server console output"
         aria-live="polite"
@@ -184,7 +192,6 @@ export default function Console({ server }: { server: Server }) {
               : "Waiting for server output. Check the deployment status if no output appears."}
           </div>
         )}
-        <div ref={bottom} />
       </div>
       <form className="console-input" onSubmit={send}>
         <ChevronRight size={18} />

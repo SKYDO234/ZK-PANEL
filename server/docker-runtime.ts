@@ -7,6 +7,7 @@ import { PassThrough, Readable } from "node:stream";
 import type { Server, Ziyn, Metrics, Status } from "../shared/types.js";
 import { config, assert } from "./config.js";
 import * as files from "./files.js";
+import { runtimeImage } from "../shared/minecraft-runtime.js";
 
 export function dockerClient() {
   return new Docker({ socketPath: config.dockerSocket, timeout: 15000 });
@@ -28,9 +29,10 @@ export async function health() {
   };
 }
 export async function provision(s: Server, t: Ziyn) {
+  const image = runtimeImage(t, s.environment);
   assert(
-    config.imageAllowlist.includes(t.image),
-    "This image is not approved by the hosting administrator.",
+    config.imageAllowlist.includes(image),
+    `The required image ${image} is not approved by the hosting administrator.`,
   );
   const root = files.workspace(s.id);
   await fs.mkdir(root, { recursive: true });
@@ -56,7 +58,7 @@ export async function provision(s: Server, t: Ziyn) {
   } catch (e: any) {
     if (e.statusCode !== 404) throw e;
   }
-  const stream = await d.pull(t.image, {});
+  const stream = await d.pull(image, {});
   await new Promise<void>((resolve, reject) =>
     d.modem.followProgress(stream, (err: any) =>
       err ? reject(err) : resolve(),
@@ -93,7 +95,7 @@ export async function provision(s: Server, t: Ziyn) {
   const portKey = `${t.port}/${t.protocol}`;
   const c = await d.createContainer({
     name,
-    Image: t.image,
+    Image: image,
     Hostname: s.id.slice(0, 12),
     User: t.id === "website" ? "101:101" : "1000:1000",
     WorkingDir: mount,
@@ -162,7 +164,14 @@ export async function remove(s: Server) {
     if (e.statusCode !== 404) throw e;
   }
 }
-const previous = new Map<string, { cpu: number; time: number }>();
+export function dockerCpuPercent(stats: any): number {
+  if (stats.precpu_stats?.cpu_usage?.total_usage == null || stats.precpu_stats?.system_cpu_usage == null) return 0;
+  const cpu = Number(stats.cpu_stats?.cpu_usage?.total_usage || 0) - Number(stats.precpu_stats?.cpu_usage?.total_usage || 0);
+  const system = Number(stats.cpu_stats?.system_cpu_usage || 0) - Number(stats.precpu_stats?.system_cpu_usage || 0);
+  const cores = Number(stats.cpu_stats?.online_cpus || stats.cpu_stats?.cpu_usage?.percpu_usage?.length || 0);
+  if (cpu <= 0 || system <= 0 || cores <= 0) return 0;
+  return Math.round((cpu / system) * cores * 1000) / 10;
+}
 export async function stats(s: Server): Promise<Omit<Metrics, "history">> {
   const c = docker().getContainer(containerName(s.id));
   const info = await c.inspect();
@@ -176,10 +185,7 @@ export async function stats(s: Server): Promise<Omit<Metrics, "history">> {
       uptime: 0,
     };
   const st = (await c.stats({ stream: false })) as any;
-  const total = st.cpu_stats?.cpu_usage?.total_usage || 0,
-    prev = previous.get(s.id);
-  previous.set(s.id, { cpu: total, time: Date.now() });
-  const delta = prev ? (Math.max(0, total - prev.cpu) / 1e9) * 100 : 0;
+  const cpu = dockerCpuPercent(st);
   const memory = Math.max(
     0,
     (st.memory_stats?.usage || 0) -
@@ -192,7 +198,7 @@ export async function stats(s: Server): Promise<Omit<Metrics, "history">> {
     networkOut += net.tx_bytes || 0;
   }
   return {
-    cpu: Math.round(delta * 10) / 10,
+    cpu,
     memory: Math.round(memory / 1048576),
     disk: Math.round((await files.usage(s.id)) / 1048576),
     networkIn: Math.round(networkIn / 1048576),
@@ -253,8 +259,10 @@ export async function command(s: Server, line: string) {
   assert(line.length <= 2000, "Command is too long.");
   const c = docker().getContainer(containerName(s.id));
   if (s.kind === "minecraft" && !["velocity", "bedrock"].includes(s.templateId)) {
+    const commandLine = line.trim().replace(/^\//, "");
+    assert(commandLine.length > 0, "Enter a Minecraft command.");
     const exec = await c.exec({
-      Cmd: ["rcon-cli", line],
+      Cmd: ["rcon-cli", commandLine],
       AttachStdout: true,
       AttachStderr: true,
     });
