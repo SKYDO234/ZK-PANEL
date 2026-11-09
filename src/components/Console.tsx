@@ -236,7 +236,7 @@ export default function Console({ server }: { server: Server }) {
           <Wifi size={12} />
           {data!.mode === "demo"
             ? "Commands are simulated in this preview."
-            : "Commands are sent to your isolated container."}
+            : server.templateId === "alpine" ? "Alpine uses apk, not apt or pkg. This unprivileged container cannot install system packages; use an approved prebuilt image." : "Commands are sent to your isolated container."}
         </span>
         <span>↑ ↓ Command history</span>
       </div>

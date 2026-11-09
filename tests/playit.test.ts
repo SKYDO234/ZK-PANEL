@@ -27,6 +27,15 @@ test("local Playit lifecycle starts, exposes only claim URL, stops and resets", 
     await assert.rejects(playit.startPlayit(server), /already running/);
     await playit.resetPlayit(server);
     assert.equal(playit.playitStatus(server).running, false);
+    process.env.PLAYIT_BINARY = path.join(temp, 'missing');
+    assert.equal(playit.playitStatus(server).configured, false);
+    await assert.rejects(playit.startPlayit(server), /Install the official Playit agent/);
+    const broken = path.join(temp, 'broken-playit');
+    await fs.writeFile(broken, '#!/bin/sh\nexit 7\n', { mode: 0o700 });
+    process.env.PLAYIT_BINARY = broken;
+    await playit.startPlayit(server);
+    for (let i = 0; i < 40 && !playit.playitStatus(server).lastError; i++) await new Promise(r => setTimeout(r, 25));
+    assert.match(playit.playitStatus(server).lastError || '', /exit 7/);
   } finally {
     await playit.stopPlayit(server);
     db.close();

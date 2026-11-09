@@ -217,3 +217,11 @@ test('console renders clean Minecraft output from persisted Docker logs', async 
   await expect(output).not.toContainText('2026-11-09T10:35:49');
   await expect(output).not.toContainText('[33;1m');
 });
+
+test('administrator can generate manual subdomain DNS instructions', async ({ page }) => {
+  await page.goto('/servers/survival-smp/network');
+  await page.getByLabel('Subdomain').fill('play.example.com');
+  await page.getByLabel('Public node IP').fill('203.0.113.10');
+  await page.getByRole('button', { name: 'Show manual record' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'play.example.com' })).toContainText('203.0.113.10');
+});

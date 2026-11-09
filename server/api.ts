@@ -71,6 +71,7 @@ import {
 } from "./services.js";
 import * as runtime from "./runtime.js";
 import * as playit from "./playit.js";
+import { dnsRecord, createCloudflareRecord } from "./subdomain.js";
 import { dockerClient } from "./docker-runtime.js";
 import type {
   User,
@@ -392,6 +393,19 @@ api.post("/servers/:id/playit/:action", async (req, res) => {
   const result = await playitAction(s, action);
   log(user(res).id, "playit." + action, `${s.name}: Playit ${action}`, "warning", s.id);
   res.json(result);
+});
+// DNS changes require an administrator and an explicitly supplied public IP.
+api.post("/servers/:id/subdomain", async (req, res) => {
+  assert(user(res).role === "admin", "Administrator access required.", 403);
+  const server = accessible(id(req), user(res));
+  const input = z.object({ hostname: z.string().max(254), target: z.string().max(64), provider: z.enum(["manual", "cloudflare"]) }).parse(req.body);
+  const record = dnsRecord(input.hostname, input.target);
+  if (input.provider === "cloudflare") {
+    assert(config.mode === "docker", "Cloudflare changes require real mode.", 400);
+    await createCloudflareRecord(record);
+    log(user(res).id, "dns.create", `${server.name}: DNS record ${record.name}`, "info", server.id);
+  }
+  res.json({ record, port: server.port, created: input.provider === "cloudflare" });
 });
 api.get("/servers/:id/console", async (req, res) => {
   const s = accessible(id(req), user(res));

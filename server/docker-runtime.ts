@@ -224,14 +224,16 @@ export function selectLogLines(text: string, cursor?: Cursor): { lines: string[]
   const lines: string[] = [];
   for (const line of text.split("\n").filter(Boolean)) {
     const match = line.match(/^(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z)\s(.*)$/);
-    if (!match) { lines.push(line); continue; }
-    const stamp = match[1].includes(".")
+    // Docker may emit several newline-separated lines under one timestamp.
+    // Count continuations in the same timestamp group to avoid replaying them.
+    const stamp = match ? (match[1].includes(".")
       ? match[1].replace(/\.(\d+)Z$/, (_, digits: string) => "." + digits.padEnd(9, "0") + "Z")
-      : match[1].replace(/Z$/, ".000000000Z");
+      : match[1].replace(/Z$/, ".000000000Z")) : group;
+    if (!stamp) { if (!cursor) lines.push(line); continue; }
     if (stamp !== group) { group = stamp; repeated = 0; }
     repeated++;
     if (cursor && (stamp < cursor.timestamp || (stamp === cursor.timestamp && repeated <= cursor.count))) continue;
-    lines.push(match[2]);
+    lines.push(match ? match[2] : line);
     if (!latest || stamp > latest.timestamp) latest = { timestamp: stamp, count: repeated };
     else if (stamp === latest.timestamp) latest = { timestamp: stamp, count: repeated };
   }

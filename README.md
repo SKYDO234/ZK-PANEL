@@ -152,3 +152,7 @@ Start the agent from Network, open its claim link, and create a tunnel in your P
 Panel administrators can change public registration and per-user deployment limits in **Panel administration → Settings**. Changes apply to future operations. Runtime mode, secrets, and image approvals remain environment/host configuration.
 
 The requested Pterodactyl VPS template is **not yet integrated**. Its PRoot installer, SSH credentials and multiport requirements need a dedicated compatibility and security review and real-host testing before enabling it. Do not expose a Docker socket or a VPS image to untrusted users as a substitute for a dedicated, properly isolated node.
+
+### Subdomain DNS
+
+Administrators can create DNS-only A/AAAA records in Network → Subdomain DNS, or display a record to enter manually at any DNS provider. Supply a public IP reachable from the internet, not a Codespaces web-forwarding hostname or a Playit address. For Cloudflare set `CLOUDFLARE_ZONE_NAME`, `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_API_TOKEN` in the panel environment and restart it. Use a token restricted to DNS edit for that zone. ZK refuses existing names and never overwrites them; delete or edit records at your DNS provider. Records are unproxied; DNS does not open ports, provide TLS, create a Playit tunnel, or configure HTTP routing. Connect using the allocated port; websites require a separately configured reverse proxy and TLS. DNS propagation and public node reachability are outside the panel's control.

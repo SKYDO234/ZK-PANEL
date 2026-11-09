@@ -1,5 +1,6 @@
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import fs from "node:fs/promises";
+import { accessSync, constants } from "node:fs";
 import path from "node:path";
 import { config, assert } from "./config.js";
 import type { Server } from "../shared/types.js";
@@ -7,6 +8,12 @@ import type { Server } from "../shared/types.js";
 type Agent = { child: ChildProcessWithoutNullStreams; claim: string | null; startedAt: string };
 const agents = new Map<string, Agent>();
 const locks = new Set<string>();
+const failures = new Map<string, string>();
+function binaryReady() {
+  const binary = process.env.PLAYIT_BINARY;
+  if (!binary || !path.isAbsolute(binary)) return false;
+  try { accessSync(binary, constants.X_OK); return true; } catch { return false; }
+}
 const agentDir = path.join(config.dataDir, "playit");
 function secretFile(server: Server) {
   assert(/^zk-[a-zA-Z0-9_-]+$/.test(server.id), "Invalid deployment ID.");
@@ -19,14 +26,15 @@ function check(server: Server) {
 export function playitStatus(server: Server) {
   check(server);
   const agent = agents.get(server.id);
-  return { running: !!agent && agent.child.exitCode === null && !agent.child.killed, claimUrl: agent?.claim ?? null, localPort: server.port, protocol: server.templateId === "bedrock" ? "udp" : "tcp", startedAt: agent?.startedAt ?? null, configured: !!process.env.PLAYIT_BINARY };
+  return { running: !!agent && agent.child.exitCode === null && !agent.child.killed, claimUrl: agent?.claim ?? null, localPort: server.port, protocol: server.templateId === "bedrock" ? "udp" : "tcp", startedAt: agent?.startedAt ?? null, configured: binaryReady(), lastError: failures.get(server.id) ?? null };
 }
 export async function startPlayit(server: Server) {
   check(server);
   assert(!locks.has(server.id), "A tunnel action is already in progress.", 409);
   assert(!agents.has(server.id), "The Playit agent is already running.", 409);
   const binary = process.env.PLAYIT_BINARY;
-  assert(binary && path.isAbsolute(binary), "Set PLAYIT_BINARY to an absolute path to a trusted Playit agent executable on the panel host.", 503);
+  assert(binary && binaryReady(), "Install the official Playit agent and set PLAYIT_BINARY to its executable absolute path on this node.", 503);
+  failures.delete(server.id);
   locks.add(server.id);
   try {
     await fs.mkdir(agentDir, { recursive: true, mode: 0o700 });
@@ -41,11 +49,16 @@ export async function startPlayit(server: Server) {
       if (match) agent.claim = match[0];
     };
     child.stdout.on("data", scan); child.stderr.on("data", scan);
-    child.once("exit", () => { if (agents.get(server.id) === agent) agents.delete(server.id); });
+    child.once("exit", (code, signal) => {
+      if (agents.get(server.id) === agent) {
+        agents.delete(server.id);
+        if (!child.killed) failures.set(server.id, `Playit exited unexpectedly (${signal || `exit ${code}`}). Check the node logs, binary architecture and Playit configuration.`);
+      }
+    });
     await new Promise<void>((resolve, reject) => { child.once("spawn", resolve); child.once("error", reject); });
     child.on("error", () => { if (agents.get(server.id) === agent) agents.delete(server.id); });
     return playitStatus(server);
-  } catch (error) { agents.delete(server.id); throw error; }
+  } catch (error) { agents.delete(server.id); failures.set(server.id, "Playit could not be started. Check the executable and node logs."); throw error; }
   finally { locks.delete(server.id); }
 }
 async function stopAgent(server: Server) {
@@ -69,7 +82,7 @@ export async function resetPlayit(server: Server) {
   check(server);
   assert(!locks.has(server.id), "A tunnel action is already in progress.", 409);
   locks.add(server.id);
-  try { await stopAgent(server); await fs.rm(secretFile(server), { force: true }); }
+  try { await stopAgent(server); await fs.rm(secretFile(server), { force: true }); failures.delete(server.id); }
   finally { locks.delete(server.id); }
 }
 export function stopAllPlayit() { for (const agent of agents.values()) agent.child.kill("SIGTERM"); }
