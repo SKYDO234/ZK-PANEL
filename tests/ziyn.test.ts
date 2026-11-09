@@ -62,3 +62,12 @@ test("Minecraft runtime types and explicit EULA defaults", () => {
     "FALSE",
   );
 });
+
+test("native Bedrock and Velocity definitions have valid startup variables", () => {
+  const bedrock = catalog.find((t) => t.id === "bedrock")!;
+  assert.ok(bedrock.variables.every(Boolean));
+  assert.equal(templateEnvironment(bedrock).EULA, "FALSE");
+  assert.equal(templateEnvironment(bedrock).VERSION, "LATEST");
+  assert.equal(templateEnvironment(catalog.find((t) => t.id === "velocity")!).VELOCITY_VERSION, "latest");
+  assert.deepEqual(catalog.find((t) => t.id === "alpine")!.command, ["sh"]);
+});

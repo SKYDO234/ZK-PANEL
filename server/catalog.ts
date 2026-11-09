@@ -202,7 +202,13 @@ export const catalog: Ziyn[] = [
       image: "itzg/minecraft-bedrock-server:latest",
       port: 19132,
       protocol: "udp",
-      variables: [mcVars[0], mcVars[1], mcVars[3], mcVars[4], mcVars[5]],
+      variables: [
+        { ...mcVars[0], default: "LATEST", description: "Bedrock dedicated server version, LATEST, or PREVIEW." },
+        { key: "SERVER_NAME", label: "Server name", default: "A new world, powered by ZK.", rules: "^.{1,120}$" },
+        mcVars[2], mcVars[3],
+        { key: "GAMEMODE", label: "Game mode", default: "survival", options: ["survival", "creative", "adventure"] },
+        { key: "EULA", label: "Accept the Minecraft EULA", description: "https://www.minecraft.net/eula", default: "FALSE", required: true, options: ["FALSE", "TRUE"] },
+      ],
       tags: ["Bedrock", "Cross-play"],
     },
   ),
@@ -218,6 +224,7 @@ export const catalog: Ziyn[] = [
       icon: "network",
       color: "#79c9ec",
       variables: [
+        { key: "VELOCITY_VERSION", label: "Velocity version", default: "latest", required: true, rules: "^[a-zA-Z0-9._-]{1,32}$" },
         {
           key: "TYPE",
           label: "Proxy type",
@@ -409,11 +416,7 @@ export const catalog: Ziyn[] = [
     "A clean, lightweight Linux environment. Make it your own.",
     {
       image: "alpine:3.22",
-      command: [
-        "sh",
-        "-c",
-        'echo "ZK container ready. Use the console or upload your application."; sleep infinity',
-      ],
+      command: ["sh"],
       icon: "box",
       color: "#94bfe4",
       port: 8000,
@@ -428,11 +431,7 @@ export const catalog: Ziyn[] = [
     "The familiar Ubuntu userland for development and services.",
     {
       image: "ubuntu:24.04",
-      command: [
-        "bash",
-        "-c",
-        'echo "ZK Ubuntu container ready."; sleep infinity',
-      ],
+      command: ["bash"],
       icon: "terminal",
       color: "#e7a77d",
       port: 8000,

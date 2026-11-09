@@ -3,6 +3,8 @@ import { HttpError } from './config.js';
 // Fixed upstreams only: never fetch an arbitrary user-supplied URL.
 const sources: Record<string, string> = {
   paper: 'https://fill.papermc.io/v3/projects/paper',
+  velocity: 'https://fill.papermc.io/v3/projects/velocity',
+  bedrock: 'https://raw.githubusercontent.com/Bedrock-OSS/BDS-Versions/main/versions.json',
   purpur: 'https://api.purpurmc.org/v2/purpur',
   vanilla: 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json',
   fabric: 'https://meta.fabricmc.net/v2/versions/game',
@@ -54,11 +56,12 @@ export async function minecraftVersions(software: string): Promise<string[]> {
     values = Array.from(html.matchAll(/href=["'](1\.\d+(?:\.\d+)?)\.json["']/gi), (match) => match[1]).reverse();
   }
   const body: any = ['forge', 'neoforge', 'spigot'].includes(software) ? {} : await response.json();
-  if (software === 'paper')
+  if (software === 'paper' || software === 'velocity')
     values = Array.isArray(body.versions)
       ? body.versions
       : (Object.values(body.versions || {}).flat() as unknown[]);
   if (software === 'purpur') values = body.versions || [];
+  if (software === 'bedrock') values = Array.isArray(body.linux?.versions) ? body.linux.versions.slice().reverse() : [];
   if (software === 'vanilla')
     values = (body.versions || []).filter((v: any) => v.type === 'release').map((v: any) => v.id);
   if (software === 'fabric')

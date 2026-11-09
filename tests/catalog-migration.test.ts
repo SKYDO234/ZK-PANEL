@@ -1,0 +1,22 @@
+import test from "node:test";
+import assert from "node:assert/strict";
+import fs from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+const root = await fs.mkdtemp(path.join(os.tmpdir(), "zk-catalog-"));
+process.env.DATA_DIR = root;
+process.env.ZK_MODE = "docker";
+process.env.SESSION_SECRET = "catalog-test-not-a-production-secret-123456";
+const { templates, seed, db } = await import("../server/db.js");
+test("native Bedrock catalog repair preserves enablement", () => {
+  const broken = templates.get("bedrock")!;
+  broken.enabled = false;
+  broken.variables = [null] as any;
+  templates.save(broken);
+  seed();
+  const repaired = templates.get("bedrock")!;
+  assert.equal(repaired.enabled, false);
+  assert.ok(repaired.variables.every(Boolean));
+  assert.ok(repaired.variables.some(v => v.key === "EULA"));
+});
+test.after(async () => { db.close(); await fs.rm(root, { recursive: true, force: true }); });

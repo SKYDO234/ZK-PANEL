@@ -42,3 +42,14 @@ test('Spigot version index provides only version JSON filenames', async () => {
   try { assert.deepEqual(await minecraftVersions('spigot'), ['1.21.11', '1.21.10']); }
   finally { globalThis.fetch = original; }
 });
+
+test('Bedrock and Velocity use their own provider catalogs', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL | Request) => String(url).includes('BDS-Versions')
+    ? new Response(JSON.stringify({linux: {versions: ['1.21.0.1', '1.21.2.1']}}))
+    : new Response(JSON.stringify({versions: {'3.4': ['3.4.0-SNAPSHOT', '3.3.0']}}))) as typeof fetch;
+  try {
+    assert.deepEqual(await minecraftVersions('bedrock'), ['1.21.2.1', '1.21.0.1']);
+    assert.deepEqual(await minecraftVersions('velocity'), ['3.4.0-SNAPSHOT', '3.3.0']);
+  } finally { globalThis.fetch = original; }
+});

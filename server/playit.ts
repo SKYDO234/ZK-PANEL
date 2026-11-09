@@ -3,7 +3,6 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { config, assert } from "./config.js";
 import type { Server } from "../shared/types.js";
-import { nodes } from "./db.js";
 
 type Agent = { child: ChildProcessWithoutNullStreams; claim: string | null; startedAt: string };
 const agents = new Map<string, Agent>();
@@ -14,7 +13,7 @@ function secretFile(server: Server) {
   return path.join(agentDir, `${server.id}.toml`);
 }
 function check(server: Server) {
-  assert(config.mode === "docker" && !config.remoteOnly && !nodes.get(server.nodeId)?.endpoint, "Playit is supported only for local Docker deployments on this panel host.", 400);
+  assert(config.mode === "docker", "Playit requires a Docker node.", 400);
   assert(server.kind === "minecraft", "Playit is available for Minecraft deployments only.");
 }
 export function playitStatus(server: Server) {

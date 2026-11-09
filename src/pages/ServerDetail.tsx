@@ -1324,7 +1324,7 @@ function ServerSettings({ server: s }: { server: Server }) {
                     : v.description
                 }
               >
-                {v.key === "VERSION" && s.kind === "minecraft" ? (
+                {(v.key === "VERSION" || v.key === "VELOCITY_VERSION") && s.kind === "minecraft" ? (
                   <MinecraftVersionInput software={s.templateId} value={env[v.key] || ""} disabled={s.status === "running"} onChange={(value) => setEnv({ ...env, [v.key]: value })} />
                 ) : v.options ? (
                   <select

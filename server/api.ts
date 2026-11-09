@@ -364,21 +364,34 @@ api.get("/servers/:id/stats", async (req, res) => {
   const s = accessible(id(req), user(res));
   res.json(await runtime.metrics(s));
 });
-// Playit agents can expose host-local services, so only administrators may manage them.
-api.get("/servers/:id/playit", (req, res) => {
+// Playit agents can expose node-local services, so only administrators may manage them.
+async function playitAction(s: Server, action: "status" | "start" | "stop" | "reset") {
+  if (nodes.get(s.nodeId)?.endpoint) {
+    return runtime.remote(s, `/servers/${s.id}/playit`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, server: { id: s.id, kind: s.kind, templateId: s.templateId, port: s.port } }),
+    });
+  }
+  assert(!config.remoteOnly, "Local Playit is disabled in remote-only mode.", 403);
+  if (action === "start") await playit.startPlayit(s);
+  else if (action === "stop") await playit.stopPlayit(s);
+  else if (action === "reset") await playit.resetPlayit(s);
+  return playit.playitStatus(s);
+}
+api.get("/servers/:id/playit", async (req, res) => {
   assert(user(res).role === "admin", "Administrator access required.", 403);
-  res.json(playit.playitStatus(accessible(id(req), user(res))));
+  const s = accessible(id(req), user(res));
+  assert(s.kind === "minecraft", "Playit is available for Minecraft deployments only.");
+  res.json(await playitAction(s, "status"));
 });
 api.post("/servers/:id/playit/:action", async (req, res) => {
   assert(user(res).role === "admin", "Administrator access required.", 403);
   const s = accessible(id(req), user(res));
-  const action = String(req.params.action);
-  if (action === "start") await playit.startPlayit(s);
-  else if (action === "stop") await playit.stopPlayit(s);
-  else if (action === "reset") await playit.resetPlayit(s);
-  else throw new HttpError(400, "Unknown tunnel action.");
+  assert(s.kind === "minecraft", "Playit is available for Minecraft deployments only.");
+  const action = z.enum(["start", "stop", "reset"]).parse(req.params.action);
+  const result = await playitAction(s, action);
   log(user(res).id, "playit." + action, `${s.name}: Playit ${action}`, "warning", s.id);
-  res.json(playit.playitStatus(s));
+  res.json(result);
 });
 api.get("/servers/:id/console", async (req, res) => {
   const s = accessible(id(req), user(res));

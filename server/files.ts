@@ -186,7 +186,7 @@ export async function usage(id: string): Promise<number> {
   await walk(workspace(id));
   return total;
 }
-export async function initializeFiles(id: string, kind: string, name: string) {
+export async function initializeFiles(id: string, kind: string, name: string, templateId?: string) {
   const root = workspace(id);
   await fs.mkdir(root, { recursive: true });
   if (kind === "website") {
@@ -194,6 +194,17 @@ export async function initializeFiles(id: string, kind: string, name: string) {
       path.join(root, "index.html"),
       `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${name.replace(/[<>&"]/g, "")}</title><style>body{font-family:system-ui;background:#111610;color:#f4f6f0;display:grid;place-items:center;min-height:90vh;margin:0}main{max-width:650px;padding:40px}h1{font-size:64px;letter-spacing:-3px}span{color:#bcf36b}p{color:#a5afa0;line-height:1.7}</style></head><body><main><small>POWERED BY ZK PANEL</small><h1>Hello, <span>world.</span></h1><p>This is your new corner of the internet. Upload your website files using the ZK file manager to make it yours.</p></main></body></html>`,
     );
+    if (templateId === "node-web") {
+      await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "zk-node-website", version: "1.0.0", private: true, scripts: { start: "node index.js" } }, null, 2));
+      await fs.writeFile(path.join(root, "index.js"), `const http = require("node:http");
+const fs = require("node:fs");
+http.createServer((req, res) => {
+  if (req.url !== "/") { res.writeHead(404); return res.end("Not found"); }
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  fs.createReadStream("index.html").pipe(res);
+}).listen(Number(process.env.PORT || 3000), "0.0.0.0", () => console.log("Website listening"));
+`);
+    }
   } else if (kind === "bot") {
     await fs.mkdir(path.join(root, "src"), { recursive: true });
     await fs.writeFile(

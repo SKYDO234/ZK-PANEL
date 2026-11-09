@@ -40,7 +40,7 @@ export default function MinecraftVersionInput({
     <>
       <input
         list={id}
-        aria-label="Minecraft version"
+        aria-label={software === "velocity" ? "Velocity version" : "Minecraft version"}
         value={value}
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}

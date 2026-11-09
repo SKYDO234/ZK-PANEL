@@ -25,10 +25,10 @@ export default function PlayitTunnel({ server }: { server: Server }) {
     <PanelHeading title="Playit tunnel" subtitle="Expose this Minecraft allocation without relying on a web-only Codespaces port." />
     {error ? <div className="inline-alert error" role="alert">{error}</div> : <>
       <p className="muted">Agent: <strong>{status?.running ? "Running" : "Stopped"}</strong>. Claim the agent, then create a tunnel in Playit to <strong>127.0.0.1:{server.port}</strong> using <strong>{status?.protocol?.toUpperCase() || "TCP"}</strong>. Use the public address shown in Playit to join.</p>
-      {status && !status.configured && <div className="inline-alert info">Install a trusted Playit agent on the panel host and set PLAYIT_BINARY to its absolute path, then restart the panel. See the README.</div>}
+      {status && !status.configured && <div className="inline-alert info">Install a trusted Playit agent on the deployment node and set PLAYIT_BINARY to its absolute path, then restart that node service. See the README.</div>}
       {status?.claimUrl && <p><a className="text-link" href={status.claimUrl} target="_blank" rel="noreferrer">Claim this agent <ExternalLink size={14} /></a></p>}
       <div className="playit-actions"><Button disabled={!status || status.running || !status.configured} loading={busy} onClick={() => void action("start")}><Play size={15}/> Start agent</Button><Button variant="secondary" disabled={!status?.running || busy} onClick={() => void action("stop")}><Square size={14}/> Stop</Button><Button variant="secondary" disabled={!status || busy} onClick={() => void action("reset")}><RotateCcw size={14}/> Reset</Button></div>
-      <p className="muted">Administrators only. A Playit agent can expose host-local services. Stopping the panel stops its agent; restart it here after panel restart.</p>
+      <p className="muted">Administrators only. A Playit agent can expose node-local services. Restart it here after the panel or node agent restarts.</p>
     </>}
   </Panel>;
 }

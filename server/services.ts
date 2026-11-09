@@ -214,7 +214,7 @@ export async function createDeployment(
   // Do not hold an HTTP request open while an image is pulled. Installation is observable.
   void (async () => {
     try {
-      await files.initializeFiles(id, created.kind, created.name);
+      await files.initializeFiles(id, created.kind, created.name, created.templateId);
       const containerId = await runtime.provision(created);
       const latest = getServer(id);
       if (!latest) return;
