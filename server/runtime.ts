@@ -85,6 +85,7 @@ export async function power(
     return;
   }
   const n = nodes.get(s.nodeId);
+  if (action === "start" || action === "restart") await syncLogs(s);
   if (n?.endpoint)
     return remote(s, `/servers/${s.id}/power`, {
       method: "POST",
@@ -145,6 +146,7 @@ export async function command(s: Server, line: string) {
     addLog(s.id, "[ZK DEMO] " + reply);
     return reply;
   }
+  try {
   const result = nodes.get(s.nodeId)?.endpoint
     ? await remote<{ output: string }>(s, `/servers/${s.id}/command`, {
         method: "POST",
@@ -158,9 +160,17 @@ export async function command(s: Server, line: string) {
     : { output: await docker.command(s, line) };
   if (result.output) addLog(s.id, result.output);
   return result.output;
+  } catch (error) {
+    addLog(s.id, `Command failed: ${error instanceof Error ? error.message : "Unknown error"}`, "error");
+    throw error;
+  }
 }
+const logSyncs = new Map<string, Promise<void>>();
 export async function syncLogs(s: Server) {
-  if (config.mode === "demo" || s.status !== "running") return;
+  if (config.mode === "demo" || s.status === "installing") return;
+  const pending = logSyncs.get(s.id);
+  if (pending) return pending;
+  const task = (async () => {
   try {
     const lines = nodes.get(s.nodeId)?.endpoint
       ? (await remote<{ lines: string[] }>(s, `/servers/${s.id}/logs`)).lines
@@ -176,6 +186,9 @@ export async function syncLogs(s: Server) {
             : "info",
       );
   } catch {}
+  })();
+  logSyncs.set(s.id, task);
+  try { await task; } finally { logSyncs.delete(s.id); }
 }
 export async function metrics(s: Server): Promise<Metrics> {
   let values: Omit<Metrics, "history">;

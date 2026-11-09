@@ -38,11 +38,12 @@ export default function Console({ server }: { server: Server }) {
     source = new EventSource(
       "/api/servers/" +
         server.id +
-        "/console/events".replace("/console/events", "/events"),
+        "/events",
       { withCredentials: true },
     );
     source.onopen = () => setConnected(true);
     source.onerror = () => setConnected(false);
+    source.addEventListener("unavailable", () => setConnected(false));
     source.onmessage = (e) => {
       try {
         const payload = JSON.parse(e.data);
@@ -155,7 +156,7 @@ export default function Console({ server }: { server: Server }) {
         aria-live="polite"
       >
         <div className="console-welcome">
-          <span>ZK</span> Your server's story, as it happens.
+          <span>ZK</span> Server console
           <small>
             {server.name} · {server.software} ·{" "}
             {data!.mode === "demo" ? "Demo runtime" : "Docker runtime"}
@@ -180,7 +181,7 @@ export default function Console({ server }: { server: Server }) {
           <div className="console-empty">
             {filter
               ? "No lines match your filter."
-              : "Waiting for your deployment to write its next chapter…"}
+              : "Waiting for server output. Check the deployment status if no output appears."}
           </div>
         )}
         <div ref={bottom} />
