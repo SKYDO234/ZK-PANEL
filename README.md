@@ -1,4 +1,10 @@
+<p align="center">
+  <img src="public/zk-studios-logo.png" alt="ZK STUDIOS logo" width="240" />
+</p>
+
 # ZK PANEL
+
+**Made by ZK STUDIOS.**
 
 **Your infrastructure, in control.** A unified hosting panel for Minecraft worlds, game servers, containers, websites, and bots.
 
