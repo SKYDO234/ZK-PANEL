@@ -36,6 +36,18 @@ export async function provision(s: Server, t: Ziyn) {
   );
   const root = files.workspace(s.id);
   await fs.mkdir(root, { recursive: true });
+  const d = docker();
+  const name = containerName(s.id);
+  try {
+    const old = d.getContainer(name);
+    const info = await old.inspect();
+    if (info.State.Running) await old.stop({ t: 20 });
+    await old.remove();
+  } catch (e: any) {
+    if (e.statusCode !== 404) throw e;
+  }
+  if (s.kind === "minecraft" && !["bedrock", "velocity"].includes(s.templateId))
+    await files.ensureAcceptedEula(s.id, s.environment.EULA === "TRUE", s.disk);
   if (config.mode === "docker" && process.getuid?.() === 0) {
     const uid = t.id === "website" ? 101 : 1000;
     async function own(dir: string) {
@@ -47,16 +59,6 @@ export async function provision(s: Server, t: Ziyn) {
       }
     }
     await own(root);
-  }
-  const d = docker();
-  const name = containerName(s.id);
-  try {
-    const old = d.getContainer(name);
-    const info = await old.inspect();
-    if (info.State.Running) await old.stop({ t: 20 });
-    await old.remove();
-  } catch (e: any) {
-    if (e.statusCode !== 404) throw e;
   }
   const stream = await d.pull(image, {});
   await new Promise<void>((resolve, reject) =>

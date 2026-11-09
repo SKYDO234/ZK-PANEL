@@ -9,7 +9,8 @@ export const dataDir = path.resolve(
   process.env.DATA_DIR || path.join(root, "data"),
 );
 mkdirSync(dataDir, { recursive: true });
-mkdirSync(path.join(dataDir, "workspaces"), { recursive: true });
+const workspacePath = path.resolve(process.env.WORKSPACE_PATH || path.join(dataDir, "workspaces"));
+mkdirSync(workspacePath, { recursive: true });
 mkdirSync(path.join(dataDir, "backups"), { recursive: true });
 let secret = process.env.SESSION_SECRET;
 if (!secret) {
@@ -30,6 +31,7 @@ export const config = {
   devBootstrap: mode === "demo" && process.env.ZK_DEV_BOOTSTRAP === "true" && (process.env.CODESPACES === "true" || process.env.ZK_ALLOW_LOCAL_DEV_BOOTSTRAP === "true"),
   root,
   dataDir,
+  workspacePath,
   secret: secret!,
   port: Number(process.env.PORT || 3000),
   publicUrl: (

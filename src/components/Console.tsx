@@ -14,6 +14,7 @@ import {
 import type { ConsoleLine, Server } from "../../shared/types";
 import { useStore } from "../lib/store";
 import { api } from "../lib/api";
+import { cleanConsoleText } from "../lib/console-text";
 import { Panel, Badge, Button } from "./ui";
 export default function Console({ server }: { server: Server }) {
   const { data, toast } = useStore();
@@ -89,14 +90,14 @@ export default function Console({ server }: { server: Server }) {
     }
   };
   const visible = lines.filter((l) =>
-    !hiddenIds.has(l.id) && (l.message + " " + l.level).toLowerCase().includes(filter.toLowerCase()),
+    !hiddenIds.has(l.id) && (cleanConsoleText(l.message) + " " + l.level).toLowerCase().includes(filter.toLowerCase()),
   );
   const exportLogs = () => {
     const url = URL.createObjectURL(
       new Blob(
         [
           lines.filter((line) => !hiddenIds.has(line.id))
-            .map((l) => `[${l.time}] [${l.level.toUpperCase()}] ${l.message}`)
+            .map((l) => `[${l.time}] [${l.level.toUpperCase()}] ${cleanConsoleText(l.message)}`)
             .join("\n"),
         ],
         { type: "text/plain" },
@@ -182,7 +183,7 @@ export default function Console({ server }: { server: Server }) {
                     ? "ERROR"
                     : "INFO"}
             </span>
-            <span>{line.message}</span>
+            <span>{cleanConsoleText(line.message)}</span>
           </div>
         ))}
         {!visible.length && (

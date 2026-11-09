@@ -205,3 +205,15 @@ test('clearing the console view keeps old logs hidden while new output arrives',
   await expect(log).toContainText('0 of a max');
   await expect(log).not.toContainText('Environment validated');
 });
+
+test('console renders clean Minecraft output from persisted Docker logs', async ({ page }) => {
+  const message = '2026-11-09T10:35:49.473123456Z \x1b[0m>\x1b[33;1m[10:35:49 WARN]: Server warning\x1b[0m\r';
+  const lines = [{ id: 'ansi-log', time: '2026-11-09T10:35:49Z', level: 'warn', message }];
+  await page.route('**/api/servers/survival-smp/console', route => route.fulfill({ json: lines }));
+  await page.route('**/api/servers/survival-smp/events', route => route.fulfill({ headers: { 'Content-Type': 'text/event-stream' }, body: `data: ${JSON.stringify({ lines })}\n\n` }));
+  await page.goto('/servers/survival-smp');
+  const output = page.getByRole('log');
+  await expect(output).toContainText('>[10:35:49 WARN]: Server warning');
+  await expect(output).not.toContainText('2026-11-09T10:35:49');
+  await expect(output).not.toContainText('[33;1m');
+});

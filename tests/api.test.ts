@@ -132,6 +132,9 @@ test("deployment validates EULA, atomically debits wallet and becomes ready", as
     await new Promise((r) => setTimeout(r, 100));
   }
   assert.equal((await request("/servers/" + serverId)).data.status, "running");
+  const eula = await request("/servers/" + serverId + "/files/read?path=eula.txt");
+  assert.equal(eula.status, 200);
+  assert.match(eula.data.content, /^eula=true$/m);
 });
 test("console commands produce actual persisted demo output", async () => {
   assert.equal(

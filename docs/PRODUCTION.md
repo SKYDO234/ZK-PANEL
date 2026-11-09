@@ -28,12 +28,14 @@ The panel uses SQLite WAL on a local persistent volume. Run one panel writer per
 ## 2. Prepare a dedicated node
 
 1. Install Docker Engine on a separate Linux machine with a supported filesystem and sufficient disk/RAM.
-2. Create a workspace directory, for example `/opt/zk/workspaces`. Set `WORKSPACE_HOST_PATH` to that **real host path**.
+2. Create a workspace directory, for example `/opt/zk/workspaces`. Set `WORKSPACE_HOST_PATH` to that **real host path**. The supplied agent Compose file mounts that path at the same location inside the agent and sets `WORKSPACE_PATH` to it, so file operations and Docker use the same workspaces. For other installations, set `WORKSPACE_PATH` to the corresponding path visible inside the agent and `WORKSPACE_HOST_PATH` to its path on the Docker host.
 3. Generate a unique `NODE_TOKEN` with `openssl rand -hex 32`. Generate a separate agent `SESSION_SECRET`.
 4. Review `IMAGE_ALLOWLIST`. Only approved, reviewed images should be listed. Pin reviewed image digests for a real service; mutable tags are not a supply-chain guarantee.
 5. Start `compose.agent.yaml` on the node. Its API binds to host loopback port 8080. Put TLS in front using a reverse proxy or a private tunnel. Do not publish the Docker socket or unprotected agent port.
 6. In panel Administration → Nodes, register the HTTPS agent URL and the **same existing NODE_TOKEN**. ZK verifies the token before saving the node; it does not invent a replacement token.
 7. Run a node health check. Verify reported capacity, then create a small test deployment and exercise console, files, upload, backup, stopped restore, restart and deletion.
+
+**Upgrading an older agent:** earlier versions used `DATA_DIR/workspaces` for panel file operations while containers mounted `WORKSPACE_HOST_PATH`. Back up both locations and reconcile any differing files before switching to the corrected mount; do not blindly overwrite running server data. Stop the workloads and agent before moving files.
 
 The agent intentionally has Docker socket access and runs as root to prepare UID-1000 workload ownership. Its token is therefore root-equivalent on that node. HTTPS, firewall rules, host isolation, secret rotation and host patching remain operator responsibilities. Agent URLs are administrator-controlled; do not grant administrator access to untrusted people.
 
