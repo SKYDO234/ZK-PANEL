@@ -79,3 +79,11 @@ test('upload quotas and restore expansion quotas are enforced', async () => {
   await assert.rejects(files.restoreWorkspace('quota-server', archive, 0.000001), /quota/);
   assert.equal(await files.readFile('quota-server', 'small.txt'), 'saved');
 });
+
+test('Node website workspace contains a runnable starter application', async () => {
+  await files.initializeFiles('node-website', 'website', 'Test Site', 'node-web');
+  const pkg = JSON.parse(await files.readFile('node-website', 'package.json'));
+  assert.equal(pkg.scripts.start, 'node index.js');
+  assert.match(await files.readFile('node-website', 'index.js'), /process\.env\.PORT/);
+  assert.match(await files.readFile('node-website', 'index.html'), /Test Site/);
+});

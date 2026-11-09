@@ -41,6 +41,7 @@ async function start(file: string, port: number) {
   throw new Error("Startup timed out: " + logs);
 }
 test.before(async () => {
+  await fs.writeFile(path.join(dir, "agent-registry.json"), JSON.stringify(["zk-playittest"]));
   await Promise.all([
     start("server/index.ts", panelPort),
     start("agent/index.ts", agentPort),
@@ -97,5 +98,11 @@ test("agent requires its bearer token and validates allocation before Docker acc
     ).status,
     404,
   );
+  const tunnel = await fetch(base + "/servers/zk-playittest/playit", {
+    method: "POST", headers: { Authorization: "Bearer " + token, "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "status", server: { id: "zk-playittest", kind: "minecraft", templateId: "paper", port: 25565 } }),
+  });
+  assert.equal(tunnel.status, 503);
+  assert.match((await tunnel.json()).error, /host network/);
   assert.equal(children[1].exitCode, null);
 });

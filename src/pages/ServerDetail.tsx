@@ -74,6 +74,7 @@ import {
   Progress,
 } from "../components/ui";
 import Console from "../components/Console";
+import PlayitTunnel from "../components/PlayitTunnel";
 import MinecraftVersionInput from "../components/MinecraftVersionInput";
 import FileManager from "../components/FileManager";
 import PolicyEditor from "../components/PolicyEditor";
@@ -1118,7 +1119,7 @@ function NetworkTab({ server: s }: { server: Server }) {
             : "Open this port in your node firewall. For a domain, point DNS to the node and configure a TLS reverse proxy."}
         </div>
       </Panel>
-      <Panel className="form-panel">
+      {s.kind === "minecraft" && data!.mode === "docker" && data!.user.role === "admin" ? <PlayitTunnel server={s} /> : <Panel className="form-panel">
         <PanelHeading
           title="Custom domain ready"
           subtitle="Bring your own corner of the internet."
@@ -1150,7 +1151,7 @@ function NetworkTab({ server: s }: { server: Server }) {
         >
           Reverse proxy guide <ExternalLink size={14} />
         </a>
-      </Panel>
+      </Panel>}
     </div>
   );
 }
@@ -1323,7 +1324,7 @@ function ServerSettings({ server: s }: { server: Server }) {
                     : v.description
                 }
               >
-                {v.key === "VERSION" && s.kind === "minecraft" ? (
+                {(v.key === "VERSION" || v.key === "VELOCITY_VERSION") && s.kind === "minecraft" ? (
                   <MinecraftVersionInput software={s.templateId} value={env[v.key] || ""} disabled={s.status === "running"} onChange={(value) => setEnv({ ...env, [v.key]: value })} />
                 ) : v.options ? (
                   <select

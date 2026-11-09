@@ -9,6 +9,7 @@ import { ZodError } from "zod";
 import { config, HttpError } from "./config.js";
 import { api } from "./api.js";
 import { mountStripeWebhook } from "./payments.js";
+import { stopAllPlayit } from "./playit.js";
 import { startAutopilot } from "./autopilot.js";
 import { reconcileDeployments } from "./services.js";
 import { nodes, getServers, setting, encrypt } from "./db.js";
@@ -177,7 +178,9 @@ if (process.exitCode !== 1) {
       `\n  ZK PANEL 0.1.0 · ${config.mode.toUpperCase()} MODE\n  http://0.0.0.0:${config.port}\n  ${config.mode === "demo" ? "Demo activity is simulated. No real servers or payments." : "Docker runtime enabled. Configure TLS before public access."}\n`,
     ),
   );
-  const shutdown = () => server.close(() => process.exit(0));
+  const shutdown = () => { stopAllPlayit(); server.close(() => process.exit(0)); };
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
 }
+
+process.on("exit", stopAllPlayit);

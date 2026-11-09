@@ -10,6 +10,8 @@ import path from "node:path";
 import { pipeline } from "node:stream/promises";
 import * as docker from "../server/docker-runtime.js";
 import * as files from "../server/files.js";
+import * as playit from "../server/playit.js";
+import type { Server } from "../shared/types.js";
 import { config } from "../server/config.js";
 import { z } from "zod";
 import { ziynSchema } from "../shared/ziyn.js";
@@ -110,7 +112,7 @@ app.post("/servers/:id/provision", async (req, res) => {
       server.port > 65535
     )
       throw new Error("Invalid resource allocation.");
-    await files.initializeFiles(id, server.kind, server.name);
+    await files.initializeFiles(id, server.kind, server.name, server.templateId);
     const containerId = await docker.provision(server as any, template);
     registered.add(id);
     await persist();
@@ -119,7 +121,22 @@ app.post("/servers/:id/provision", async (req, res) => {
     busy.delete(id);
   }
 });
+app.post("/servers/:id/playit", async (req, res) => {
+  if (process.env.PLAYIT_HOST_NETWORK !== "true") {
+    res.status(503).json({ error: "Playit requires a node agent on the Docker host network; set PLAYIT_HOST_NETWORK=true only after configuring it." });
+    return;
+  }
+  const b = z.object({ action: z.enum(["status", "start", "stop", "reset"]), server: z.object({ id: z.string().regex(/^zk-[a-zA-Z0-9_-]+$/), kind: z.literal("minecraft"), templateId: z.string().max(80), port: z.number().int().min(1024).max(65535) }) }).parse(req.body);
+  if (b.server.id !== req.params.id) throw new Error("Server ID mismatch.");
+  const s = b.server as Server;
+  if (b.action === "start") await playit.startPlayit(s);
+  else if (b.action === "stop") await playit.stopPlayit(s);
+  else if (b.action === "reset") await playit.resetPlayit(s);
+  res.json(playit.playitStatus(s));
+});
 app.delete("/servers/:id", async (req, res) => {
+  if (config.mode === "docker" && /^zk-[a-zA-Z0-9_-]+$/.test(String(req.params.id)))
+    await playit.resetPlayit({ id: String(req.params.id), kind: "minecraft" } as Server);
   await docker.remove({ id: String(req.params.id) } as any);
   registered.delete(String(req.params.id));
   await persist();
@@ -306,3 +323,7 @@ app.listen(Number(process.env.AGENT_PORT || 8080), "0.0.0.0", () =>
       ". Put this service behind authenticated TLS.",
   ),
 );
+
+process.on("exit", playit.stopAllPlayit);
+process.on("SIGTERM", () => { playit.stopAllPlayit(); process.exit(0); });
+process.on("SIGINT", () => { playit.stopAllPlayit(); process.exit(0); });

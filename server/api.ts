@@ -12,6 +12,7 @@ import { createReadStream } from "node:fs";
 import path from "node:path";
 import { config, assert, HttpError } from "./config.js";
 import { plans } from "./catalog.js";
+import { panelSettings } from "./panel-settings.js";
 import { minecraftVersions } from "./minecraft-versions.js";
 import { parseZiynDocument } from "../shared/ziyn.js";
 import {
@@ -69,6 +70,7 @@ import {
   validateVariables,
 } from "./services.js";
 import * as runtime from "./runtime.js";
+import * as playit from "./playit.js";
 import { dockerClient } from "./docker-runtime.js";
 import type {
   User,
@@ -97,7 +99,7 @@ api.get("/config", (_req, res) =>
     mode: config.mode,
     autoDemo: config.autoDemo,
     devBootstrap: config.devBootstrap,
-    registration: config.registration,
+    registration: panelSettings().registration,
     version: "0.1.0",
     stripe: !!process.env.STRIPE_SECRET_KEY,
     discord: !!process.env.DISCORD_BOT_TOKEN,
@@ -154,7 +156,7 @@ api.post("/auth/login", authLimit, async (req, res) => {
 });
 api.post("/auth/register", authLimit, async (req, res) => {
   assert(
-    config.registration,
+    panelSettings().registration,
     "Registration is disabled. Ask your administrator for an account.",
     403,
   );
@@ -203,7 +205,7 @@ api.get("/bootstrap", (req, res) => {
       stripe: !!process.env.STRIPE_SECRET_KEY,
       discord: !!process.env.DISCORD_BOT_TOKEN,
       discordAppId: process.env.DISCORD_APPLICATION_ID,
-      registration: config.registration,
+      registration: panelSettings().registration,
     },
   });
 });
@@ -361,6 +363,35 @@ api.put("/servers/:id/startup", (req, res) => {
 api.get("/servers/:id/stats", async (req, res) => {
   const s = accessible(id(req), user(res));
   res.json(await runtime.metrics(s));
+});
+// Playit agents can expose node-local services, so only administrators may manage them.
+async function playitAction(s: Server, action: "status" | "start" | "stop" | "reset") {
+  if (nodes.get(s.nodeId)?.endpoint) {
+    return runtime.remote(s, `/servers/${s.id}/playit`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, server: { id: s.id, kind: s.kind, templateId: s.templateId, port: s.port } }),
+    });
+  }
+  assert(!config.remoteOnly, "Local Playit is disabled in remote-only mode.", 403);
+  if (action === "start") await playit.startPlayit(s);
+  else if (action === "stop") await playit.stopPlayit(s);
+  else if (action === "reset") await playit.resetPlayit(s);
+  return playit.playitStatus(s);
+}
+api.get("/servers/:id/playit", async (req, res) => {
+  assert(user(res).role === "admin", "Administrator access required.", 403);
+  const s = accessible(id(req), user(res));
+  assert(s.kind === "minecraft", "Playit is available for Minecraft deployments only.");
+  res.json(await playitAction(s, "status"));
+});
+api.post("/servers/:id/playit/:action", async (req, res) => {
+  assert(user(res).role === "admin", "Administrator access required.", 403);
+  const s = accessible(id(req), user(res));
+  assert(s.kind === "minecraft", "Playit is available for Minecraft deployments only.");
+  const action = z.enum(["start", "stop", "reset"]).parse(req.params.action);
+  const result = await playitAction(s, action);
+  log(user(res).id, "playit." + action, `${s.name}: Playit ${action}`, "warning", s.id);
+  res.json(result);
 });
 api.get("/servers/:id/console", async (req, res) => {
   const s = accessible(id(req), user(res));
@@ -757,6 +788,16 @@ api.delete("/discord/link", (req, res) => {
   res.json({ ok: true });
 });
 api.use("/admin", admin);
+api.get("/admin/settings", (_req, res) => res.json({ ...panelSettings(), mode: config.mode, remoteOnly: config.remoteOnly, publicUrl: config.publicUrl }));
+api.put("/admin/settings", (req, res) => {
+  const b = z.object({ registration: z.boolean(), maxServers: z.number().int().min(1).max(1000) }).strict().parse(req.body);
+  transaction(() => {
+    setting("panel:registration", String(b.registration));
+    setting("panel:max-servers", String(b.maxServers));
+    log(user(res).id, "panel.settings.updated", "Panel registration and deployment limits updated", "warning");
+  });
+  res.json(panelSettings());
+});
 api.get("/admin/overview", (req, res) => {
   if (user(res).role !== "admin")
     throw new HttpError(403, "Administrator access required.");

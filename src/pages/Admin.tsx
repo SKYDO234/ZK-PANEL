@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PanelAdminSettings from "../components/PanelAdminSettings";
 import { Link } from "react-router-dom";
 import {
   ShieldCheck,
@@ -102,6 +103,7 @@ export default function Admin() {
           <Users size={15} />
           Users
         </button>
+        <button className={tab === "settings" ? "active" : ""} onClick={() => setTab("settings")}><Settings2 size={15} /> Settings</button>
         <button
           className={tab === "tools" ? "active" : ""}
           onClick={() => setTab("tools")}
@@ -193,6 +195,8 @@ export default function Admin() {
             </div>
           )}
         </Panel>
+      ) : tab === "settings" ? (
+        <PanelAdminSettings />
       ) : (
         <div className="admin-tools-grid">
           {[

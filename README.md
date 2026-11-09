@@ -1,4 +1,10 @@
+<p align="center">
+  <img src="public/zk-studios-logo.png" alt="ZK STUDIOS logo" width="240" />
+</p>
+
 # ZK PANEL
+
+**Made by ZK STUDIOS.**
 
 **Your infrastructure, in control.** A unified hosting panel for Minecraft worlds, game servers, containers, websites, and bots.
 
@@ -129,8 +135,16 @@ See [docs/VERIFICATION.md](docs/VERIFICATION.md) for executed checks and explici
 
 ### Minecraft versions and startup troubleshooting
 
-The version field suggests releases from the upstream Paper, Purpur, Fabric and Mojang providers. Provider access is required; if a lookup fails or the selected software is not yet supported, enter the version manually and verify it with the software provider. This list is not a guarantee that every version works with the configured Java image; older releases can require a different Java version.
+The version field suggests releases from the upstream Paper, Purpur, Fabric, Forge, NeoForge, Spigot, Bedrock and Velocity providers. Bedrock suggestions use the community-maintained Bedrock-OSS archive. Provider access is required; if a lookup fails or the selected software is not yet supported, enter the version manually and verify it with the software provider. This list is not a guarantee that every version works with the configured Java image; older releases can require a different Java version.
 
 In real Docker mode, open the deployment's **Console** to inspect output from the container, including output after a crash. Autopilot pauses after three unsuccessful recovery attempts instead of restarting indefinitely. A Docker container being marked running does not necessarily mean Minecraft has finished downloading its JAR or is ready to accept players. If Paper still fails, inspect the last console error, available RAM, disk space, image/network access and EULA; the exact cause cannot be determined without the server's logs. You can disable recovery in the deployment's Autopilot tab while investigating.
 
-Playit tunnel management, the referenced Pterodactyl VPS template and a JTG-style admin settings redesign are not implemented by these changes. Do not expose a Docker socket or a VPS image to untrusted users as a substitute for a dedicated, properly isolated node.
+### Playit tunnel (local or remote Docker node)
+
+The **Network → Playit tunnel** panel can start and stop a Playit agent for a Minecraft deployment on a local Docker node or configured remote node. It is administrator-only because a Playit agent can expose host-local services. The panel does not download or execute an unverified binary: install a trusted Playit agent from the [official Playit releases](https://github.com/playit-cloud/playit-agent/releases), verify it according to the provider's instructions, and set `PLAYIT_BINARY` to its absolute path in the panel environment. For a Codespace add `PLAYIT_BINARY=/absolute/path/to/playit` to `.env.real`, stop the panel, and run `bash install.sh --start-only`.
+
+Start the agent from Network, open its claim link, and create a tunnel in your Playit account pointed at `127.0.0.1` and the deployment's allocated host port shown in the panel. Select TCP for Java Minecraft and UDP for Bedrock. The public join address is shown in Playit, not automatically returned by ZK PANEL. For a local node the agent runs on the panel host. For a remote node install the binary on that node, set `PLAYIT_BINARY` and `PLAYIT_HOST_NETWORK=true` in the node agent environment, and run the node agent on the actual Docker host network so `127.0.0.1` reaches the published deployment port. Do not set that flag for the default bridge-networked agent container. A host-networked node agent listens on the host: restrict its API with a firewall and authenticated TLS. Restart Playit from the panel after the panel or node agent restarts. Reset deletes the local credential; revoke the agent in Playit as well if it was compromised. Codespaces can sleep or stop.
+
+Panel administrators can change public registration and per-user deployment limits in **Panel administration → Settings**. Changes apply to future operations. Runtime mode, secrets, and image approvals remain environment/host configuration.
+
+The requested Pterodactyl VPS template is **not yet integrated**. Its PRoot installer, SSH credentials and multiport requirements need a dedicated compatibility and security review and real-host testing before enabling it. Do not expose a Docker socket or a VPS image to untrusted users as a substitute for a dedicated, properly isolated node.

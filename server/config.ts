@@ -46,7 +46,7 @@ export const config = {
   dockerSocket: process.env.DOCKER_SOCKET || "/var/run/docker.sock",
   imageAllowlist: (
     process.env.IMAGE_ALLOWLIST ||
-    "itzg/minecraft-server:java21,itzg/mc-proxy:java21,node:22-alpine,python:3.12-alpine,nginxinc/nginx-unprivileged:1.27-alpine,alpine:3.22,redis:7.4-alpine"
+    "itzg/minecraft-server:java21,itzg/minecraft-bedrock-server:latest,itzg/mc-proxy:java21,node:22-alpine,python:3.12-alpine,nginxinc/nginx-unprivileged:1.27-alpine,alpine:3.22,redis:7.4-alpine"
   ).split(","),
   maxServers: Number(process.env.MAX_SERVERS_PER_USER || 20),
 };

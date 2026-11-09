@@ -333,7 +333,7 @@ export default function CreateDeployment() {
                     hint={v.description}
                     required={v.required}
                   >
-                    {v.key === "VERSION" && t.kind === "minecraft" ? (
+                    {(v.key === "VERSION" || v.key === "VELOCITY_VERSION") && t.kind === "minecraft" ? (
                       <MinecraftVersionInput software={t.id} value={env[v.key] ?? v.default} onChange={(value) => setEnv({ ...env, [v.key]: value })} />
                     ) : v.options ? (
                       <select

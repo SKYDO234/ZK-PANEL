@@ -35,7 +35,7 @@ export async function provision(s: Server, t: Ziyn) {
   const root = files.workspace(s.id);
   await fs.mkdir(root, { recursive: true });
   if (config.mode === "docker" && process.getuid?.() === 0) {
-    const uid = s.kind === "website" ? 101 : 1000;
+    const uid = t.id === "website" ? 101 : 1000;
     async function own(dir: string) {
       await fs.chown(dir, uid, uid);
       for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
@@ -69,7 +69,7 @@ export async function provision(s: Server, t: Ziyn) {
     SERVER_MEMORY: String(s.memory),
     HOME: "/home/container",
   };
-  if (s.kind === "minecraft") {
+  if (s.kind === "minecraft" && s.templateId !== "velocity" && s.templateId !== "bedrock") {
     env.EULA = s.environment.EULA || "FALSE";
     env.MEMORY = Math.floor(s.memory * 0.75) + "M";
     env.ENABLE_RCON = "true";
@@ -77,10 +77,15 @@ export async function provision(s: Server, t: Ziyn) {
       s.environment.RCON_PASSWORD || randomBytes(24).toString("hex");
     env.ONLINE_MODE = env.ONLINE_MODE || "true";
   }
+  if (s.templateId === "bedrock") {
+    env.EULA = s.environment.EULA || "FALSE";
+    // The panel assigns a UDP allocation for Bedrock; recent images default to NetherNet/TCP.
+    env.TRANSPORT = "raknet";
+  }
   const mount =
     s.kind === "minecraft"
       ? "/data"
-      : s.kind === "website"
+      : t.id === "website"
         ? "/usr/share/nginx/html"
         : t.id === "redis"
           ? "/data"
@@ -90,7 +95,7 @@ export async function provision(s: Server, t: Ziyn) {
     name,
     Image: t.image,
     Hostname: s.id.slice(0, 12),
-    User: s.kind === "website" ? "101:101" : "1000:1000",
+    User: t.id === "website" ? "101:101" : "1000:1000",
     WorkingDir: mount,
     Cmd: t.command.length ? t.command : undefined,
     Env: Object.entries(env).map(([k, v]) => `${k}=${v}`),
@@ -101,7 +106,7 @@ export async function provision(s: Server, t: Ziyn) {
     ExposedPorts: { [portKey]: {} },
     HostConfig: {
       Binds: [
-        `${path.join(config.workspaceHostPath, s.id)}:${mount}:${s.kind === "website" ? "ro" : "rw"}`,
+        `${path.join(config.workspaceHostPath, s.id)}:${mount}:${t.id === "website" ? "ro" : "rw"}`,
       ],
       PortBindings: {
         [portKey]: [{ HostIp: "0.0.0.0", HostPort: String(s.port) }],

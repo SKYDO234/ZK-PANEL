@@ -366,13 +366,22 @@ export function credit(
 }
 
 export function seed() {
-  for (const t of catalog)
-    if (!templates.get(t.id))
-      templates.save({
-        ...t,
-        enabled:
-          config.mode === "demo" || config.imageAllowlist.includes(t.image),
-      });
+  for (const t of catalog) {
+    const existing = templates.get(t.id);
+    if (!existing) {
+      templates.save({ ...t, enabled: config.mode === "demo" || config.imageAllowlist.includes(t.image) });
+    } else if (t.id === "bedrock" && existing.source === t.source && existing.image === t.image &&
+      (!Array.isArray(existing.variables) || existing.variables.some((v) => !v) || !existing.variables.some((v) => v.key === "EULA"))) {
+      // Repair the original native Bedrock definition, without enabling a previously disabled image.
+      templates.save({ ...existing, variables: t.variables });
+    } else if (t.id === "velocity" && existing.source === t.source && existing.image === t.image &&
+      !existing.variables.some((v) => v.key === "VELOCITY_VERSION")) {
+      templates.save({ ...existing, variables: t.variables });
+    } else if ((t.id === "alpine" || t.id === "ubuntu") && existing.source === t.source && existing.image === t.image &&
+      existing.command.some((part) => part.includes("sleep infinity"))) {
+      templates.save({ ...existing, command: t.command });
+    }
+  }
   if (config.mode === "docker") return;
   if (getUser("demo-user")) return;
   const time = now();
