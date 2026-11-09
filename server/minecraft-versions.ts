@@ -6,6 +6,9 @@ const sources: Record<string, string> = {
   purpur: 'https://api.purpurmc.org/v2/purpur',
   vanilla: 'https://piston-meta.mojang.com/mc/game/version_manifest_v2.json',
   fabric: 'https://meta.fabricmc.net/v2/versions/game',
+  forge: 'https://maven.minecraftforge.net/net/minecraftforge/forge/maven-metadata.xml',
+  neoforge: 'https://maven.neoforged.net/releases/net/neoforged/neoforge/maven-metadata.xml',
+  spigot: 'https://hub.spigotmc.org/versions/',
 };
 const cache = new Map<string, { until: number; versions: string[] }>();
 export async function minecraftVersions(software: string): Promise<string[]> {
@@ -34,8 +37,23 @@ export async function minecraftVersions(software: string): Promise<string[]> {
       502,
       'The software version provider is unavailable. Enter a version manually or try again later.',
     );
-  const body: any = await response.json();
   let values: unknown[] = [];
+  if (software === 'forge' || software === 'neoforge') {
+    const xml = await response.text();
+    if (xml.length > 5_000_000) throw new HttpError(502, 'Version catalog is too large.');
+    const entries = Array.from(xml.matchAll(/<version>([a-zA-Z0-9._-]{1,64})<\/version>/g), (match) => match[1]);
+    values = entries.map((version) => {
+      if (software === 'forge') return version.match(/^(1\.\d+(?:\.\d+)?)-/)?.[1];
+      const parts = version.match(/^(\d+)\.(\d+)\.\d+(?:-.+)?$/);
+      return parts && Number(parts[1]) >= 20 ? `1.${Number(parts[1])}.${Number(parts[2])}` : undefined;
+    }).filter(Boolean).reverse();
+  }
+  if (software === 'spigot') {
+    const html = await response.text();
+    if (html.length > 5_000_000) throw new HttpError(502, 'Version catalog is too large.');
+    values = Array.from(html.matchAll(/href=["'](1\.\d+(?:\.\d+)?)\.json["']/gi), (match) => match[1]).reverse();
+  }
+  const body: any = ['forge', 'neoforge', 'spigot'].includes(software) ? {} : await response.json();
   if (software === 'paper')
     values = Array.isArray(body.versions)
       ? body.versions

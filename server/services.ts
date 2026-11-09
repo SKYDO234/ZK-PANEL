@@ -6,6 +6,7 @@ import { createHash, randomBytes } from "node:crypto";
 import path from "node:path";
 import { z } from "zod";
 import { config, assert, HttpError } from "./config.js";
+import { panelSettings } from "./panel-settings.js";
 import { plans, templateEnvironment } from "./catalog.js";
 import {
   uid,
@@ -29,6 +30,7 @@ import {
   setting,
 } from "./db.js";
 import * as runtime from "./runtime.js";
+import * as playit from "./playit.js";
 import * as files from "./files.js";
 import type {
   Server,
@@ -142,7 +144,7 @@ export async function createDeployment(
   const id = uid("zk-");
   const created = transaction(() => {
     assert(
-      getServers(user.id).length < config.maxServers,
+      getServers(user.id).length < panelSettings().maxServers,
       "Deployment limit reached. Contact your administrator.",
     );
     const reserved = getServers().filter(
@@ -316,6 +318,7 @@ export async function deleteDeployment(user: User, id: string) {
   assert(!busy.has(id), "Wait for the current power action to finish.", 409);
   busy.add(id);
   try {
+    if (config.mode === "docker" && !config.remoteOnly && !nodes.get(s.nodeId)?.endpoint && s.kind === "minecraft") await playit.resetPlayit(s);
     await runtime.remove(s);
     for (const b of backups.all(id))
       await fs.rm(path.join(config.dataDir, "backups", b.id + ".tar.gz"), {

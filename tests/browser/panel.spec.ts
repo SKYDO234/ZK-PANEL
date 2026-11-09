@@ -157,3 +157,35 @@ test("Minecraft version field offers provider versions and preserves manual inpu
   await expect(version).toHaveValue("1.21.11");
   await expect(page.locator('datalist option[value="1.21.11"]')).toHaveCount(1);
 });
+
+test('administrators can update panel settings', async ({ page }) => {
+  await page.goto('/admin');
+  await page.getByRole('button', { name: 'Settings', exact: true }).click();
+  await expect(page.getByText('Access & deployment limits')).toBeVisible();
+  const limit = page.getByLabel('Deployment limit per user');
+  const original = await limit.inputValue();
+  await limit.fill('23');
+  await page.getByRole('button', { name: 'Save settings' }).click();
+  await expect(page.getByText('Panel settings saved.')).toBeVisible();
+  await expect(limit).toHaveValue('23');
+  await limit.fill(original);
+  await page.getByRole('button', { name: 'Save settings' }).click();
+});
+
+test('Playit controls display the local tunnel instructions and claim link', async ({ page }) => {
+  await page.goto('/servers');
+  await expect(page.getByRole('heading', { name: 'Deployments' })).toBeVisible();
+  const data = await (await page.request.get('/api/bootstrap')).json();
+  const mc = data.servers.find((s: { kind: string }) => s.kind === 'minecraft');
+  expect(mc).toBeTruthy();
+  data.mode = 'docker';
+  await page.route('**/api/bootstrap', route => route.fulfill({ json: data }));
+  let running = false;
+  await page.route(`**/api/servers/${mc.id}/playit`, route => route.fulfill({ json: { running, configured: true, localPort: mc.port, protocol: 'tcp', claimUrl: running ? 'https://playit.gg/claim/Test123' : null } }));
+  await page.route(`**/api/servers/${mc.id}/playit/start`, route => { running = true; return route.fulfill({ json: { running, configured: true, localPort: mc.port, protocol: 'tcp', claimUrl: 'https://playit.gg/claim/Test123' } }); });
+  await page.goto(`/servers/${mc.id}/network`);
+  await expect(page.getByText('Playit tunnel', { exact: true })).toBeVisible();
+  await expect(page.locator(".playit-panel").getByText(`127.0.0.1:${mc.port}`)).toBeVisible();
+  await page.getByRole('button', { name: 'Start agent' }).click();
+  await expect(page.getByRole('link', { name: 'Claim this agent' })).toHaveAttribute('href', 'https://playit.gg/claim/Test123');
+});

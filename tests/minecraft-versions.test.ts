@@ -21,3 +21,24 @@ test('version lookup uses the selected fixed upstream and returns available vers
     globalThis.fetch = original;
   }
 });
+
+test('Forge and NeoForge derive game releases from upstream Maven metadata', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL | Request) => {
+    const versions = String(url).includes('forge.net')
+      ? '<version>1.20.1-47.3.0</version><version>1.21.1-52.0.1</version>'
+      : '<version>20.4.1</version><version>21.1.100</version>';
+    return new Response(`<metadata><versioning><versions>${versions}</versions></versioning></metadata>`);
+  }) as typeof fetch;
+  try {
+    assert.deepEqual(await minecraftVersions('forge'), ['1.21.1', '1.20.1']);
+    assert.deepEqual(await minecraftVersions('neoforge'), ['1.21.1', '1.20.4']);
+  } finally { globalThis.fetch = original; }
+});
+
+test('Spigot version index provides only version JSON filenames', async () => {
+  const original = globalThis.fetch;
+  globalThis.fetch = (async () => new Response('<a href="1.21.10.json">release</a><a href="../../secret.json">skip</a><a href="1.21.11.json">release</a>')) as typeof fetch;
+  try { assert.deepEqual(await minecraftVersions('spigot'), ['1.21.11', '1.21.10']); }
+  finally { globalThis.fetch = original; }
+});

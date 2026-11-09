@@ -299,6 +299,8 @@ test("tenant isolation prevents reading or modifying another user deployment", a
     (await request("/admin/overview", { cookie: other })).status,
     403,
   );
+  assert.equal((await request("/admin/settings", { cookie: other })).status, 403);
+  assert.equal((await request("/servers/" + serverId + "/playit/start", { cookie: other, body: {} })).status, 403);
   assert.equal(
     (
       await request("/billing/demo-credit", {
@@ -320,4 +322,19 @@ test("confirmed deletion removes the deployment", async () => {
     200,
   );
   assert.equal((await request("/servers/" + serverId)).status, 404);
+});
+
+test("admin settings are validated and control public registration", async () => {
+  const before = await request("/admin/settings");
+  assert.equal(before.status, 200);
+  try {
+    assert.equal((await request("/admin/settings", { method: "PUT", body: { registration: false, maxServers: 7 } })).status, 200);
+    assert.equal((await request("/config", { cookie: "" })).data.registration, false);
+    const denied = await request("/auth/register", { body: { name: "Test User", email: "test-settings@example.com", password: "a-good-password-123" }, cookie: "" });
+    assert.equal(denied.status, 403);
+    assert.equal((await request("/admin/settings", { method: "PUT", body: { registration: true, maxServers: 0 } })).status, 400);
+    assert.equal((await request("/admin/settings", { cookie: "" })).status, 401);
+  } finally {
+    await request("/admin/settings", { method: "PUT", body: { registration: before.data.registration, maxServers: before.data.maxServers } });
+  }
 });

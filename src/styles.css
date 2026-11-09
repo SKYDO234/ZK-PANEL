@@ -7484,3 +7484,11 @@ tbody tr:hover {
 .console-input input { color: #eff4f9; font-size: 13px; flex: 1; min-width: 0; }
 .console-input .btn { font-size: 12px; }
 @media (max-width: 700px) { .console-output { height: 360px; } }
+.admin-settings-layout { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+.admin-settings-form { display: grid; gap: 18px; padding: 0 24px 24px; }
+.admin-settings-form p { margin: 0; overflow-wrap: anywhere; }
+.admin-settings-form .btn { justify-self: start; }
+@media (max-width: 800px) { .admin-settings-layout { grid-template-columns: 1fr; } }
+.playit-panel { display: flex; flex-direction: column; gap: 16px; }
+.playit-panel p { line-height: 1.6; }
+.playit-actions { display: flex; gap: 8px; flex-wrap: wrap; }
