@@ -13,6 +13,7 @@ import {
   setting,
 } from "./db.js";
 import * as docker from "./docker-runtime.js";
+import { consoleInput } from "./console-command.js";
 import * as files from "./files.js";
 import type {
   Server,
@@ -123,6 +124,7 @@ export async function command(s: Server, line: string) {
     s.status === "running",
     "Start this deployment before sending commands.",
   );
+  consoleInput(line, s.kind === "minecraft");
   addLog(s.id, line, "command");
   if (config.mode === "demo") {
     const cmd = line.trim().replace(/^\//, "").toLowerCase();

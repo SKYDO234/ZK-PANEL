@@ -156,3 +156,7 @@ The requested Pterodactyl VPS template is **not yet integrated**. Its PRoot inst
 ### Subdomain DNS
 
 Administrators can create DNS-only A/AAAA records in Network → Subdomain DNS, or display a record to enter manually at any DNS provider. Supply a public IP reachable from the internet, not a Codespaces web-forwarding hostname or a Playit address. For Cloudflare set `CLOUDFLARE_ZONE_NAME`, `CLOUDFLARE_ZONE_ID` and `CLOUDFLARE_API_TOKEN` in the panel environment and restart it. Use a token restricted to DNS edit for that zone. ZK refuses existing names and never overwrites them; delete or edit records at your DNS provider. Records are unproxied; DNS does not open ports, provide TLS, create a Playit tunnel, or configure HTTP routing. Connect using the allocated port; websites require a separately configured reverse proxy and TLS. DNS propagation and public node reachability are outside the panel's control.
+
+### Minecraft console commands
+
+The panel sends Minecraft commands to the container's open console input. Wait until the server has finished starting, then enter a command such as `list` or `/list`. Command output appears in the live console; a sent confirmation does not guarantee the game accepted or executed it. Existing containers created with console input disabled must be restarted through the panel. The panel does not automatically retry uncertain sends, since commands can change server data.

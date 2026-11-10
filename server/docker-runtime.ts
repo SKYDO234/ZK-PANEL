@@ -1,13 +1,15 @@
 import Docker from "dockerode";
 import fs from "node:fs/promises";
+import http from "node:http";
 import { existsSync, createWriteStream, createReadStream } from "node:fs";
 import path from "node:path";
 import { randomBytes } from "node:crypto";
-import { PassThrough, Readable } from "node:stream";
+import { PassThrough, Readable, type Duplex } from "node:stream";
 import type { Server, Ziyn, Metrics, Status } from "../shared/types.js";
-import { config, assert } from "./config.js";
+import { config, assert, HttpError } from "./config.js";
 import * as files from "./files.js";
 import { runtimeImage } from "../shared/minecraft-runtime.js";
+import { sendConsoleCommand } from "./console-command.js";
 
 export function dockerClient() {
   return new Docker({ socketPath: config.dockerSocket, timeout: 15000 });
@@ -259,34 +261,33 @@ export async function readLogs(s: Server): Promise<string[]> {
   if (result.cursor) cursors.set(s.id, result.cursor);
   return result.lines;
 }
+/** Attach without a request body: Docker's hijacked socket is the console input. */
+export function attachConsole(id: string): Promise<Duplex> {
+  return new Promise((resolve, reject) => {
+    const request = http.request({
+      socketPath: config.dockerSocket,
+      method: "POST",
+      path: `/containers/${encodeURIComponent(containerName(id))}/attach?stream=1&stdin=1&stdout=0&stderr=0`,
+      headers: { Connection: "Upgrade", Upgrade: "tcp", "Content-Length": "0" },
+    });
+    request.setTimeout(10000, () => request.destroy(new HttpError(504, "Timed out connecting to the server console.")));
+    request.once("upgrade", (_response, socket, head) => {
+      request.setTimeout(0);
+      if (head.length) socket.unshift(head);
+      resolve(socket);
+    });
+    request.once("response", (response) => {
+      response.resume();
+      reject(new HttpError(502, `Docker console attach failed (HTTP ${response.statusCode}).`));
+    });
+    request.once("error", reject);
+    request.end();
+  });
+}
 export async function command(s: Server, line: string) {
-  assert(line.length <= 2000, "Command is too long.");
-  const c = docker().getContainer(containerName(s.id));
-  if (s.kind === "minecraft" && !["velocity", "bedrock"].includes(s.templateId)) {
-    const commandLine = line.trim().replace(/^\//, "");
-    assert(commandLine.length > 0, "Enter a Minecraft command.");
-    const exec = await c.exec({
-      Cmd: ["rcon-cli", commandLine],
-      AttachStdout: true,
-      AttachStderr: true,
-    });
-    const stream = await exec.start({ hijack: true });
-    const out = new PassThrough();
-    const chunks: Buffer[] = [];
-    out.on("data", (chunk: Buffer) => chunks.push(chunk));
-    c.modem.demuxStream(stream, out, out);
-    await new Promise<void>((resolve, reject) => {
-      stream.on("end", resolve);
-      stream.on("error", reject);
-    });
-    const output = Buffer.concat(chunks).toString("utf8").trim();
-    const result = await exec.inspect();
-    if (result.ExitCode !== 0) throw new Error(output || `RCON command failed (exit ${result.ExitCode}). Is Minecraft ready?`);
-    return output || "Command sent.";
-  }
-  const stream = await c.attach({ stream: true, stdin: true, hijack: true });
-  stream.write(line + "\n");
-  await new Promise((r) => setTimeout(r, 100));
-  stream.end();
-  return "Command sent to container stdin.";
+  const container = docker().getContainer(containerName(s.id));
+  return sendConsoleCommand({
+    inspect: () => container.inspect(),
+    attach: () => attachConsole(s.id),
+  }, line, s.kind === "minecraft");
 }
