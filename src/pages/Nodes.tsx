@@ -348,26 +348,12 @@ export default function Nodes() {
             <details className="setup-details">
               <summary>How do I prepare an agent?</summary>
               <ol>
-                <li>
-                  Install Docker on a dedicated host and clone this repository.
-                </li>
-                <li>
-                  Generate a secret: <code>openssl rand -hex 32</code>.
-                </li>
-                <li>
-                  Set <code>NODE_TOKEN</code>, <code>SESSION_SECRET</code>,{" "}
-                  <code>DATA_DIR</code>, and <code>WORKSPACE_HOST_PATH</code> in
-                  the agent environment.
-                </li>
-                <li>
-                  Start with <code>npm run agent</code> behind a TLS reverse
-                  proxy.
-                </li>
-                <li>
-                  Paste the HTTPS agent URL and the same NODE_TOKEN above. ZK
-                  verifies the agent before saving.
-                </li>
+                <li>On a dedicated Ubuntu or Debian node, point a public DNS name to the machine and allow HTTPS and certificate-validation traffic.</li>
+                <li>Download <code>node.sh</code> from this repository, then run <code>sudo bash node.sh</code> on the node.</li>
+                <li>Enter the DNS name and a node token when prompted. The installer can generate a token if you leave it blank; keep it private.</li>
+                <li>Paste the resulting HTTPS agent URL and the same token above. The panel verifies the node before saving it.</li>
               </ol>
+              <p>Docker access is root-equivalent. Use a dedicated node and restrict HTTPS access to the panel where possible. See the README for prerequisites and troubleshooting.</p>
             </details>
             <div className="modal-actions">
               <Button
