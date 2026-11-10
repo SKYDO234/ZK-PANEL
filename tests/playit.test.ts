@@ -7,7 +7,7 @@ import type { Server } from "../shared/types.js";
 
 const temp = await fs.mkdtemp(path.join(os.tmpdir(), "zk-playit-test-"));
 const binary = path.join(temp, "mock-playit");
-await fs.writeFile(binary, '#!/bin/sh\necho "https://playit.gg/claim/Example123"\nexec sleep 60\n', { mode: 0o700 });
+await fs.writeFile(binary, '#!/bin/sh\nprintf "https://playit.gg/claim/Exam"\nsleep 0.1\nprintf "ple123\\n"\necho "secret-token-should-not-appear"\nexec sleep 60\n', { mode: 0o700 });
 process.env.DATA_DIR = temp;
 process.env.ZK_MODE = "docker";
 process.env.ZK_REMOTE_ONLY = "false";
@@ -24,9 +24,12 @@ test("local Playit lifecycle starts, exposes only claim URL, stops and resets", 
     for (let i = 0; i < 40 && !playit.playitStatus(server).claimUrl; i++) await new Promise(r => setTimeout(r, 25));
     assert.equal(playit.playitStatus(server).claimUrl, "https://playit.gg/claim/Example123");
     assert.equal(playit.playitStatus(server).localPort, 25566);
+    assert.ok(playit.playitStatus(server).events.some(line => line.includes("Claim link available")));
+    assert.ok(!playit.playitStatus(server).events.some(line => line.includes("Example123") || line.includes("secret-token")));
     await assert.rejects(playit.startPlayit(server), /already running/);
     await playit.resetPlayit(server);
     assert.equal(playit.playitStatus(server).running, false);
+    assert.equal(playit.playitStatus(server).events.length, 0);
     process.env.PLAYIT_BINARY = path.join(temp, 'missing');
     assert.equal(playit.playitStatus(server).configured, false);
     await assert.rejects(playit.startPlayit(server), /Install the official Playit agent/);

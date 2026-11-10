@@ -9,6 +9,11 @@ type Agent = { child: ChildProcessWithoutNullStreams; claim: string | null; star
 const agents = new Map<string, Agent>();
 const locks = new Set<string>();
 const failures = new Map<string, string>();
+// Only panel-generated milestones are exposed: raw agent output can contain secrets.
+const events = new Map<string, string[]>();
+function event(id: string, message: string) {
+  events.set(id, [...(events.get(id) || []), message].slice(-20));
+}
 function binaryReady() {
   const binary = process.env.PLAYIT_BINARY;
   if (!binary || !path.isAbsolute(binary)) return false;
@@ -26,7 +31,7 @@ function check(server: Server) {
 export function playitStatus(server: Server) {
   check(server);
   const agent = agents.get(server.id);
-  return { running: !!agent && agent.child.exitCode === null && !agent.child.killed, claimUrl: agent?.claim ?? null, localPort: server.port, protocol: server.templateId === "bedrock" ? "udp" : "tcp", startedAt: agent?.startedAt ?? null, configured: binaryReady(), lastError: failures.get(server.id) ?? null };
+  return { running: !!agent && agent.child.exitCode === null && !agent.child.killed, claimUrl: agent?.claim ?? null, localPort: server.port, protocol: server.templateId === "bedrock" ? "udp" : "tcp", startedAt: agent?.startedAt ?? null, configured: binaryReady(), lastError: failures.get(server.id) ?? null, events: events.get(server.id) || [] };
 }
 export async function startPlayit(server: Server) {
   check(server);
@@ -35,6 +40,7 @@ export async function startPlayit(server: Server) {
   const binary = process.env.PLAYIT_BINARY;
   assert(binary && binaryReady(), "Install the official Playit agent and set PLAYIT_BINARY to its executable absolute path on this node.", 503);
   failures.delete(server.id);
+  event(server.id, "Starting the Playit agent on the deployment node.");
   locks.add(server.id);
   try {
     await fs.mkdir(agentDir, { recursive: true, mode: 0o700 });
@@ -44,21 +50,33 @@ export async function startPlayit(server: Server) {
     agents.set(server.id, agent);
     let buffer = "";
     const scan = (chunk: Buffer) => {
-      buffer = (buffer + chunk.toString("utf8")).slice(-4096);
-      const match = buffer.match(/https:\/\/playit\.gg\/claim\/[a-zA-Z0-9]+/);
-      if (match) agent.claim = match[0];
+      buffer += chunk.toString("utf8");
+      const lines = buffer.split(/[\r\n]/);
+      buffer = (lines.pop() || "").slice(-4096);
+      for (const line of lines) {
+        const clean = line.replace(/\x1b\[[0-?]*[ -/]*[@-~]/g, "");
+        const match = clean.match(/https:\/\/playit\.gg\/claim\/[a-zA-Z0-9]+/);
+        if (match && match[0] !== agent.claim) {
+          agent.claim = match[0];
+          event(server.id, "Claim link available. Open it to connect this agent to Playit.");
+        }
+      }
     };
     child.stdout.on("data", scan); child.stderr.on("data", scan);
     child.once("exit", (code, signal) => {
       if (agents.get(server.id) === agent) {
         agents.delete(server.id);
-        if (!child.killed) failures.set(server.id, `Playit exited unexpectedly (${signal || `exit ${code}`}). Check the node logs, binary architecture and Playit configuration.`);
+        if (!child.killed) {
+          failures.set(server.id, `Playit exited unexpectedly (${signal || `exit ${code}`}). Check the node logs, binary architecture and Playit configuration.`);
+          event(server.id, "Agent exited unexpectedly. Check node configuration and the error above.");
+        }
       }
     });
     await new Promise<void>((resolve, reject) => { child.once("spawn", resolve); child.once("error", reject); });
+    event(server.id, "Agent process started. Waiting for claim information if needed.");
     child.on("error", () => { if (agents.get(server.id) === agent) agents.delete(server.id); });
     return playitStatus(server);
-  } catch (error) { agents.delete(server.id); failures.set(server.id, "Playit could not be started. Check the executable and node logs."); throw error; }
+  } catch (error) { agents.delete(server.id); failures.set(server.id, "Playit could not be started. Check the executable and node logs."); event(server.id, "Agent could not start."); throw error; }
   finally { locks.delete(server.id); }
 }
 async function stopAgent(server: Server) {
@@ -76,13 +94,13 @@ export async function stopPlayit(server: Server) {
   check(server);
   assert(!locks.has(server.id), "A tunnel action is already in progress.", 409);
   locks.add(server.id);
-  try { await stopAgent(server); } finally { locks.delete(server.id); }
+  try { await stopAgent(server); event(server.id, "Agent stopped."); } finally { locks.delete(server.id); }
 }
 export async function resetPlayit(server: Server) {
   check(server);
   assert(!locks.has(server.id), "A tunnel action is already in progress.", 409);
   locks.add(server.id);
-  try { await stopAgent(server); await fs.rm(secretFile(server), { force: true }); failures.delete(server.id); }
+  try { await stopAgent(server); await fs.rm(secretFile(server), { force: true }); failures.delete(server.id); events.delete(server.id); }
   finally { locks.delete(server.id); }
 }
 export function stopAllPlayit() { for (const agent of agents.values()) agent.child.kill("SIGTERM"); }

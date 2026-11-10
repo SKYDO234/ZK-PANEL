@@ -7497,3 +7497,6 @@ tbody tr:hover {
   .console-line > time, .console-level { font-size: 10px; }
   .console-line > span:last-child { flex: 1; min-width: 0; }
 }
+
+.playit-progress { background: var(--bg, #101713); border: 1px solid var(--border, #2b382b); border-radius: 8px; padding: 12px; font-size: 13px; line-height: 1.7; overflow-wrap: anywhere; }
+.playit-progress strong { display: block; margin-bottom: 4px; }
