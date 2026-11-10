@@ -143,6 +143,23 @@ The version field suggests releases from the upstream Paper, Purpur, Fabric, For
 
 In real Docker mode, open the deployment's **Console** to inspect output from the container, including output after a crash. Autopilot pauses after three unsuccessful recovery attempts instead of restarting indefinitely. A Docker container being marked running does not necessarily mean Minecraft has finished downloading its JAR or is ready to accept players. If Paper still fails, inspect the last console error, available RAM, disk space, image/network access and EULA; the exact cause cannot be determined without the server's logs. You can disable recovery in the deployment's Autopilot tab while investigating.
 
+### Install a dedicated node with `node.sh`
+
+On a fresh, dedicated Ubuntu or Debian machine, point a public DNS name to it and allow inbound TCP 80 and 443 (including your hosting provider firewall). TCP 80 is needed for automatic TLS certificate validation. Ports 80, 443 and local port 8080 must not already be in use. Install a TLS proxy separately if they are occupied. Docker access is root-equivalent: do not use a machine containing unrelated secrets.
+
+After this version is merged to `main`, download and review the installer on the node, then run it interactively:
+
+```sh
+curl -fsSLO https://raw.githubusercontent.com/SKYDO234/ZK-PANEL/main/node.sh
+sudo bash node.sh
+```
+
+It asks for the node DNS name, optionally a panel IPv4 address to restrict access, then a token (or generates one when left blank). It installs Docker Engine and Compose if missing, clones the ZK PANEL repository, starts the agent and a Caddy HTTPS proxy, and verifies local agent health and the HTTPS certificate. It does not overwrite existing node credentials on rerun. The generated token is stored in `/etc/zk-panel-node/node.env` (root-only); follow the printed instructions to view it privately. Never paste tokens into chat or share them publicly.
+
+In the panel, sign in as administrator → **Nodes → Add node**, enter the printed HTTPS URL and the **same** token, and enter the node's region and capacity. The panel verifies the node and then marks it online. The installer cannot automatically register the node with the panel or bypass its login. Restrict HTTPS access to the panel wherever possible; the Docker socket and node token provide root-equivalent access. Open allocated game-server ports separately in host and provider firewalls. Docker-published ports can bypass some host firewall rules; check your host's Docker firewall configuration.
+
+If the installer reports HTTPS isn't ready, check DNS, ports 80/443, the provider firewall, and `sudo docker logs zk-node-https`; then rerun the installer. For agent logs use `sudo docker compose --env-file /etc/zk-panel-node/node.env -f /opt/zk-panel-node/compose.agent.yaml logs agent`. Re-running uses the existing checkout and token; updating the agent requires an intentional checkout update and rebuild. Node installation and public TLS have not been verified on a live host here. See [the production guide](docs/PRODUCTION.md) before deploying untrusted workloads.
+
 ### Playit tunnel (local or remote Docker node)
 
 The **Network → Playit tunnel** panel can start and stop a Playit agent for a Minecraft deployment on a local Docker node or configured remote node. It is administrator-only because a Playit agent can expose host-local services. The panel does not download or execute an unverified binary: install a trusted Playit agent from the [official Playit releases](https://github.com/playit-cloud/playit-agent/releases), verify it according to the provider's instructions, and set `PLAYIT_BINARY` to its absolute path in the panel environment. For a Codespace add `PLAYIT_BINARY=/absolute/path/to/playit` to `.env.real`, stop the panel, and run `bash install.sh --start-only`.
