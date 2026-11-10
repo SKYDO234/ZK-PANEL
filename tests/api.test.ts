@@ -147,6 +147,7 @@ test("console commands produce actual persisted demo output", async () => {
   );
   const result = await request("/servers/" + serverId + "/console");
   assert.ok(result.data.some((l: any) => l.message.includes("0 of a max")));
+  assert.equal((await request("/servers/" + serverId + "/command", { body: { command: "list\nstop" } })).status, 400);
 });
 test("file write/read/upload and traversal protection", async () => {
   const route = "/servers/" + serverId;

@@ -173,12 +173,13 @@ app.get("/servers/:id/logs", async (req, res) =>
   }),
 );
 app.post("/servers/:id/command", async (req, res) => {
-  const s = {
-    id: String(req.params.id),
-    kind: req.body.kind,
-    templateId: req.body.templateId,
-  } as any;
-  res.json({ output: await docker.command(s, String(req.body.command)) });
+  const input = z.object({
+    command: z.string().min(1).max(2000),
+    kind: z.enum(["minecraft", "game", "container", "website", "bot"]),
+    templateId: z.string().max(80),
+  }).parse(req.body);
+  const s = { id: String(req.params.id), kind: input.kind, templateId: input.templateId } as Server;
+  res.json({ output: await docker.command(s, input.command) });
 });
 app.get("/servers/:id/files", async (req, res) =>
   res.json(

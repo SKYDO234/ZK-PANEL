@@ -236,7 +236,7 @@ export default function Console({ server }: { server: Server }) {
           <Wifi size={12} />
           {data!.mode === "demo"
             ? "Commands are simulated in this preview."
-            : server.templateId === "alpine" ? "Alpine uses apk, not apt or pkg. This unprivileged container cannot install system packages; use an approved prebuilt image." : "Commands are sent to your isolated container."}
+            : server.templateId === "alpine" ? "Alpine uses apk, not apt or pkg. This unprivileged container cannot install system packages; use an approved prebuilt image." : server.kind === "minecraft" ? "Commands are sent to the server console. Check its output for the result; wait until the server is ready." : "Commands are sent to your isolated container."}
         </span>
         <span>↑ ↓ Command history</span>
       </div>
