@@ -24,6 +24,8 @@ test('write, list, read, rename, download and delete round trip', async () => {
   const d = await files.downloadFile('test-server', 'renamed.txt');
   const chunks = [];
   for await (const c of d.stream) chunks.push(c);
+  await new Promise<void>((resolve) => d.stream.closed ? resolve() : d.stream.once('close', resolve));
+  assert.equal(d.stream.closed, true);
   assert.equal(Buffer.concat(chunks).toString(), 'hello world');
   await files.deleteFile('test-server', 'renamed.txt');
   assert.equal((await files.listFiles('test-server')).length, 0);
@@ -86,6 +88,7 @@ test('Node website workspace contains a runnable starter application', async () 
   assert.equal(pkg.scripts.start, 'node index.js');
   assert.match(await files.readFile('node-website', 'index.js'), /process\.env\.PORT/);
   assert.match(await files.readFile('node-website', 'index.html'), /Test Site/);
+  assert.equal((await fs.stat(path.join(files.workspace('node-website'), 'index.html'))).mode & 0o777, 0o644);
 });
 
 test('Minecraft EULA is written only with explicit acceptance and existing files are repaired', async () => {
@@ -104,4 +107,30 @@ test('Minecraft EULA is written only with explicit acceptance and existing files
   await fs.rm(path.join(files.workspace('eula-declined'), 'eula.txt'));
   await fs.symlink('/etc/passwd', path.join(files.workspace('eula-declined'), 'eula.txt'));
   await assert.rejects(files.ensureAcceptedEula('eula-declined', true, 20), /Symbolic links/);
+});
+
+test('repeated initialization preserves existing Minecraft, bot and website files', async () => {
+  for (const entry of [
+    { id: 'retry-minecraft', kind: 'minecraft', template: 'paper', file: 'server.properties', content: 'motd=My world\n' },
+    { id: 'retry-bot', kind: 'bot', template: 'node', file: 'index.js', content: 'console.log("custom bot")\n' },
+    { id: 'retry-web', kind: 'website', template: 'node-web', file: 'index.html', content: '<h1>My site</h1>' },
+  ]) {
+    await files.initializeFiles(entry.id, entry.kind, 'Original', entry.template, true);
+    await files.writeFile(entry.id, entry.file, entry.content, 20);
+    await files.initializeFiles(entry.id, entry.kind, 'New name', entry.template, true);
+    assert.equal(await files.readFile(entry.id, entry.file), entry.content);
+  }
+});
+
+test('initialization never follows an existing file or directory symlink', async () => {
+  const id = 'retry-symlink';
+  await fs.mkdir(files.workspace(id), { recursive: true });
+  const outside = path.join(root, 'outside.txt');
+  await fs.writeFile(outside, 'keep me');
+  await fs.symlink(outside, path.join(files.workspace(id), 'index.html'));
+  await files.initializeFiles(id, 'website', 'Site', 'website');
+  assert.equal(await fs.readFile(outside, 'utf8'), 'keep me');
+  await fs.symlink(root, path.join(files.workspace(id), 'plugins'));
+  await assert.rejects(files.initializeFiles(id, 'minecraft', 'test', 'paper', true));
+  assert.equal(await fs.readFile(outside, 'utf8'), 'keep me');
 });

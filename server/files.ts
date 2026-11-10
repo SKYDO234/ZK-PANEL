@@ -1,6 +1,5 @@
 import fs from "node:fs/promises";
 import {
-  createReadStream,
   createWriteStream,
   constants as fsConstants,
 } from "node:fs";
@@ -187,69 +186,90 @@ export async function usage(id: string): Promise<number> {
   return total;
 }
 export async function initializeFiles(id: string, kind: string, name: string, templateId?: string, eulaAccepted = false) {
-  const root = workspace(id);
-  await fs.mkdir(root, { recursive: true });
-  if (kind === "website") {
-    await fs.writeFile(
-      path.join(root, "index.html"),
-      `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${name.replace(/[<>&"]/g, "")}</title><style>body{font-family:system-ui;background:#111610;color:#f4f6f0;display:grid;place-items:center;min-height:90vh;margin:0}main{max-width:650px;padding:40px}h1{font-size:64px;letter-spacing:-3px}span{color:#bcf36b}p{color:#a5afa0;line-height:1.7}</style></head><body><main><small>POWERED BY ZK PANEL</small><h1>Hello, <span>world.</span></h1><p>This is your new corner of the internet. Upload your website files using the ZK file manager to make it yours.</p></main></body></html>`,
-    );
-    if (templateId === "node-web") {
-      await fs.writeFile(path.join(root, "package.json"), JSON.stringify({ name: "zk-node-website", version: "1.0.0", private: true, scripts: { start: "node index.js" } }, null, 2));
-      await fs.writeFile(path.join(root, "index.js"), `const http = require("node:http");
-const fs = require("node:fs");
-http.createServer((req, res) => {
-  if (req.url !== "/") { res.writeHead(404); return res.end("Not found"); }
-  res.setHeader("Content-Type", "text/html; charset=utf-8");
-  fs.createReadStream("index.html").pipe(res);
-}).listen(Number(process.env.PORT || 3000), "0.0.0.0", () => console.log("Website listening"));
-`);
+  return locked(id, async () => {
+    // Initial provisioning can be retried after an interrupted response. Never
+    // replace a user's existing data, and never follow workload-controlled links.
+    async function initialFile(relative: string, content: string) {
+      let handle: import("node:fs/promises").FileHandle;
+      try {
+        handle = await openSafe(id, relative, fsConstants.O_WRONLY | fsConstants.O_CREAT | fsConstants.O_EXCL);
+      } catch (error: any) {
+        if (error.code === "EEXIST") return;
+        throw error;
+      }
+      try {
+        await handle.writeFile(content);
+        // Static site containers run under a different unprivileged UID.
+        if (kind === "website" && relative === "index.html") await handle.chmod(0o644);
+      } finally { await handle.close(); }
     }
-  } else if (kind === "bot") {
-    await fs.mkdir(path.join(root, "src"), { recursive: true });
-    await fs.writeFile(
-      path.join(root, "package.json"),
-      JSON.stringify(
-        {
-          name: "zk-bot",
-          version: "1.0.0",
-          private: true,
-          scripts: { start: "node index.js" },
-          dependencies: {},
-        },
-        null,
-        2,
-      ),
-    );
-    await fs.writeFile(
-      path.join(root, "index.js"),
-      '// Upload your bot code and add its dependencies in package.json.\nconsole.log("Your ZK workspace is ready. Deploy your bot to get started.");\nsetInterval(() => {}, 60000);\n',
-    );
-    await fs.writeFile(
-      path.join(root, "main.py"),
-      'import time\nprint("Your ZK Python workspace is ready. Upload your bot code.", flush=True)\nwhile True:\n    time.sleep(60)\n',
-    );
-    await fs.writeFile(
-      path.join(root, "requirements.txt"),
-      "# Add your Python dependencies here\n",
-    );
-  } else if (kind === "minecraft") {
-    await fs.mkdir(path.join(root, "plugins"), { recursive: true });
-    await fs.mkdir(path.join(root, "world"), { recursive: true });
-    await fs.writeFile(
-      path.join(root, "server.properties"),
-      "# Managed by ZK PANEL. Stop the server before editing.\nmotd=A new world, powered by ZK.\nmax-players=20\ndifficulty=normal\ngamemode=survival\n",
-    );
-    await fs.writeFile(
-      path.join(root, "eula.txt"),
-      `# Minecraft EULA: https://aka.ms/MinecraftEULA\neula=${eulaAccepted && templateId !== "bedrock" && templateId !== "velocity" ? "true" : "false"}\n`,
-    );
-  } else {
-    await fs.writeFile(
-      path.join(root, "README.txt"),
-      `Welcome to ${name}\nUpload files with the file manager. Your persistent directory is mounted inside this container.\n`,
-    );
-  }
+    async function initialDirectory(relative: string) {
+      const parent = await parentDirectory(id, relative + "/.init", true);
+      await parent.close();
+    }
+    await fs.mkdir(workspace(id), { recursive: true });
+    if (kind === "website") {
+      await initialFile(
+        "index.html",
+        `<!doctype html>\n<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>${name.replace(/[<>&"]/g, "")}</title><style>body{font-family:system-ui;background:#111610;color:#f4f6f0;display:grid;place-items:center;min-height:90vh;margin:0}main{max-width:650px;padding:40px}h1{font-size:64px;letter-spacing:-3px}span{color:#bcf36b}p{color:#a5afa0;line-height:1.7}</style></head><body><main><small>POWERED BY ZK PANEL</small><h1>Hello, <span>world.</span></h1><p>This is your new corner of the internet. Upload your website files using the ZK file manager to make it yours.</p></main></body></html>`,
+      );
+      if (templateId === "node-web") {
+        await initialFile("package.json", JSON.stringify({ name: "zk-node-website", version: "1.0.0", private: true, scripts: { start: "node index.js" } }, null, 2));
+        await initialFile("index.js", `const http = require("node:http");
+  const fs = require("node:fs");
+  http.createServer((req, res) => {
+    if (req.url !== "/") { res.writeHead(404); return res.end("Not found"); }
+    res.setHeader("Content-Type", "text/html; charset=utf-8");
+    fs.createReadStream("index.html").pipe(res);
+  }).listen(Number(process.env.PORT || 3000), "0.0.0.0", () => console.log("Website listening"));
+  `);
+      }
+    } else if (kind === "bot") {
+      await initialDirectory("src");
+      await initialFile(
+        "package.json",
+        JSON.stringify(
+          {
+            name: "zk-bot",
+            version: "1.0.0",
+            private: true,
+            scripts: { start: "node index.js" },
+            dependencies: {},
+          },
+          null,
+          2,
+        ),
+      );
+      await initialFile(
+        "index.js",
+        '// Upload your bot code and add its dependencies in package.json.\nconsole.log("Your ZK workspace is ready. Deploy your bot to get started.");\nsetInterval(() => {}, 60000);\n',
+      );
+      await initialFile(
+        "main.py",
+        'import time\nprint("Your ZK Python workspace is ready. Upload your bot code.", flush=True)\nwhile True:\n    time.sleep(60)\n',
+      );
+      await initialFile(
+        "requirements.txt",
+        "# Add your Python dependencies here\n",
+      );
+    } else if (kind === "minecraft") {
+      await initialDirectory("plugins");
+      await initialDirectory("world");
+      await initialFile(
+        "server.properties",
+        "# Managed by ZK PANEL. Stop the server before editing.\nmotd=A new world, powered by ZK.\nmax-players=20\ndifficulty=normal\ngamemode=survival\n",
+      );
+      await initialFile(
+        "eula.txt",
+        `# Minecraft EULA: https://aka.ms/MinecraftEULA\neula=${eulaAccepted && templateId !== "bedrock" && templateId !== "velocity" ? "true" : "false"}\n`,
+      );
+    } else {
+      await initialFile(
+        "README.txt",
+        `Welcome to ${name}\nUpload files with the file manager. Your persistent directory is mounted inside this container.\n`,
+      );
+    }
+  });
 }
 export async function listFiles(
   id: string,
@@ -407,14 +427,15 @@ export async function renameFile(id: string, from: string, to: string) {
 }
 export async function downloadFile(id: string, relative: string) {
   const handle = await openSafe(id, relative, fsConstants.O_RDONLY);
-  const stat = await handle.stat();
-  if (!stat.isFile()) {
+  try {
+    const stat = await handle.stat();
+    assert(stat.isFile(), "Only files can be downloaded.");
+    const stream = handle.createReadStream({ autoClose: true });
+    return { stream, size: stat.size, name: path.basename(relative) };
+  } catch (error) {
     await handle.close();
-    throw new Error("Only files can be downloaded.");
+    throw error;
   }
-  const stream = createReadStream("", { fd: handle.fd, autoClose: false });
-  stream.on("close", () => void handle.close());
-  return { stream, size: stat.size, name: path.basename(relative) };
 }
 export async function uploadFile(
   id: string,

@@ -25,13 +25,14 @@ test('Docker socket attaches once and writes only the Minecraft command to stdin
   });
   daemon.on('upgrade', (req, socket, head) => {
     attachCount++;
+    const currentAttach = attachCount;
     query = req.url || '';
     assert.equal(req.headers['content-length'], '0');
     socket.write('HTTP/1.1 101 Switching Protocols\r\nConnection: Upgrade\r\nUpgrade: tcp\r\n\r\n');
     const collect = (chunk: Buffer) => { received += chunk.toString(); if (received.includes('\n')) receivedDone(); };
     if (head.length) collect(head);
     socket.on('data', collect);
-    socket.on('end', () => socket.end());
+    socket.on('end', () => socket.end(currentAttach === 2 ? 'Error attaching: container stopped' : undefined));
   });
   await new Promise<void>(resolve => daemon.listen(process.env.DOCKER_SOCKET!, resolve));
   try {
@@ -41,6 +42,8 @@ test('Docker socket attaches once and writes only the Minecraft command to stdin
     assert.equal(attachCount, 1);
     assert.match(query, /stdin=1/);
     assert.match(output, /sent to the server console/);
+    await assert.rejects(runtime.command({ id: 'zk-minecraft', kind: 'minecraft', templateId: 'paper' } as Server, 'list'), /Docker reported a console attach error/);
+    assert.equal(attachCount, 2);
   } finally {
     await new Promise<void>((resolve, reject) => daemon.close(err => err ? reject(err) : resolve()));
     await fs.rm(root, { recursive: true, force: true });

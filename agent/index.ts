@@ -112,7 +112,8 @@ app.post("/servers/:id/provision", async (req, res) => {
       server.port > 65535
     )
       throw new Error("Invalid resource allocation.");
-    await files.initializeFiles(id, server.kind, server.name, server.templateId, server.environment.EULA === "TRUE");
+    if (!registered.has(id))
+      await files.initializeFiles(id, server.kind, server.name, server.templateId, server.environment.EULA === "TRUE");
     const containerId = await docker.provision(server as any, template);
     registered.add(id);
     await persist();

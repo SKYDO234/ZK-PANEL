@@ -25,6 +25,7 @@ export async function sendConsoleCommand(container: ConsoleContainer, line: stri
   await new Promise<void>((resolve, reject) => {
     let settled = false;
     let written = false;
+    let attachError = false;
     const timeout = setTimeout(() => finish(new HttpError(504, "Timed out sending the command. Check the console before retrying; it may have been received.")), 10000);
     const finish = (error?: Error) => {
       if (settled) return;
@@ -35,9 +36,13 @@ export async function sendConsoleCommand(container: ConsoleContainer, line: stri
       if (error) reject(error); else resolve();
     };
     stream.on("error", () => finish(new HttpError(502, "Console connection failed. Check the console before retrying; the command may have been received.")));
-    const closed = () => finish((written || stream.writableFinished) ? undefined : new HttpError(502, "Console connection closed before the command was sent. Check the console before retrying."));
+    // stdout/stderr are disabled on this attachment, so any response is a
+    // Docker attach error, not Minecraft command output (which comes via logs).
+    stream.on("data", (chunk: Buffer) => { if (chunk.length) attachError = true; });
+    const closed = () => finish(attachError
+      ? new HttpError(502, "Docker reported a console attach error. Check the server console and node logs before retrying; the command may have been received.")
+      : (written || stream.writableFinished) ? undefined : new HttpError(502, "Console connection closed before the command was sent. Check the console before retrying."));
     stream.once("end", closed);
-    stream.resume();
     stream.once("close", closed);
     // Half-close only the write side. Wait for Docker to finish consuming the
     // input before closing the read side; an immediate destroy can race Docker.
