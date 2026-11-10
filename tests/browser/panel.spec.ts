@@ -184,13 +184,14 @@ test('Playit controls display the local tunnel instructions and claim link', asy
   data.mode = 'docker';
   await page.route('**/api/bootstrap', route => route.fulfill({ json: data }));
   let running = false;
-  await page.route(`**/api/servers/${mc.id}/playit`, route => route.fulfill({ json: { running, configured: true, localPort: mc.port, protocol: 'tcp', claimUrl: running ? 'https://playit.gg/claim/Test123' : null } }));
-  await page.route(`**/api/servers/${mc.id}/playit/start`, route => { running = true; return route.fulfill({ json: { running, configured: true, localPort: mc.port, protocol: 'tcp', claimUrl: 'https://playit.gg/claim/Test123' } }); });
+  await page.route(`**/api/servers/${mc.id}/playit`, route => route.fulfill({ json: { running, configured: true, localPort: mc.port, protocol: 'tcp', claimUrl: running ? 'https://playit.gg/claim/Test123' : null, events: running ? ['Claim link available. Open it to connect this agent to Playit.'] : [] } }));
+  await page.route(`**/api/servers/${mc.id}/playit/start`, route => { running = true; return route.fulfill({ json: { running, configured: true, localPort: mc.port, protocol: 'tcp', claimUrl: 'https://playit.gg/claim/Test123', events: ['Claim link available. Open it to connect this agent to Playit.'] } }); });
   await page.goto(`/servers/${mc.id}/network`);
   await expect(page.getByText('Playit tunnel', { exact: true })).toBeVisible();
   await expect(page.locator(".playit-panel").getByText(`127.0.0.1:${mc.port}`)).toBeVisible();
   await page.getByRole('button', { name: 'Start agent' }).click();
   await expect(page.getByRole('link', { name: 'Claim this agent' })).toHaveAttribute('href', 'https://playit.gg/claim/Test123');
+  await expect(page.getByRole('log', { name: 'Playit setup progress' })).toContainText('Claim link available');
 });
 
 
