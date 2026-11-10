@@ -225,3 +225,13 @@ test('administrator can generate manual subdomain DNS instructions', async ({ pa
   await page.getByRole('button', { name: 'Show manual record' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'play.example.com' })).toContainText('203.0.113.10');
 });
+
+test('console shows command errors and retains input for review', async ({ page }) => {
+  await page.route('**/api/servers/survival-smp/command', route => route.fulfill({ status: 502, json: { error: 'Docker reported a console attach error. Check the console before retrying.' } }));
+  await page.goto('/servers/survival-smp');
+  const command = page.getByLabel('Console command');
+  await command.fill('list');
+  await command.press('Enter');
+  await expect(page.getByText('Docker reported a console attach error. Check the console before retrying.')).toBeVisible();
+  await expect(command).toHaveValue('list');
+});
